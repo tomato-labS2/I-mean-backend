@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: I-mean
+  profiles:
+    active: ${PROFILE:dev}
+  config:
+    import: optional:file:.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
