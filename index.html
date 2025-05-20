@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I:mean - 커플 상담 서비스</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 헤더 영역 -->
+        <header>
+            <div class="hamburger-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+            <div class="logo">
+                <img src="logo.png" alt="I:mean 로고" class="logo-img">
+            </div>
+            <div class="report-button">
+                <i class="fas fa-file-alt"></i>
+            </div>
+        </header>
+
+        <!-- 사이드 메뉴 -->
+        <div class="side-menu" id="sideMenu">
+            <div class="side-menu-header">
+                <div class="close-menu">
+                    <i class="fas fa-times"></i>
+                </div>
+                <div class="profile">
+                    <div class="profile-image">
+                        <img src="profile-placeholder.png" alt="프로필 이미지">
+                    </div>
+                    <div class="profile-name">사용자님</div>
+                </div>
+            </div>
+            <div class="side-menu-items">
+                <div class="menu-item"><i class="fas fa-user"></i> 마이페이지</div>
+                <div class="menu-item"><i class="fas fa-history"></i> 대화 기록</div>
+                <div class="menu-item"><i class="fas fa-file-alt"></i> 리포트 모음</div>
+                <div class="menu-item"><i class="fas fa-cog"></i> 설정</div>
+                <div class="menu-item"><i class="fas fa-question-circle"></i> 도움말</div>
+                <div class="menu-item"><i class="fas fa-sign-out-alt"></i> 로그아웃</div>
+            </div>
+        </div>
+
+        <!-- 메인 영역 - 홈 화면 -->
+        <div class="main-section" id="homeScreen">
+            <div class="logo-section">
+                <img src="logo-large.png" alt="I:mean 로고" class="logo-large">
+                <div class="chat-bubbles">
+                    <div class="bubble left"></div>
+                    <div class="bubble right"></div>
+                </div>
+                <div class="couple-icons">
+                    <div class="couple-figure"></div>
+                </div>
+                <div class="text-labels">
+                    <div class="label-left">진심한대화</div>
+                    <div class="label-right">수용하는마음</div>
+                </div>
+            </div>
+            <div class="start-chat-button" id="startChatButton">
+                대화 시작하기
+            </div>
+        </div>
+
+        <!-- 채팅 화면 (처음에는 숨김) -->
+        <div class="chat-section hidden" id="chatScreen">
+            <div class="chat-messages" id="chatMessages">
+                <!-- 채팅 메시지들이 여기에 추가됨 -->
+                <div class="message-container counselor">
+                    <div class="message-bubble">
+                        안녕하세요, I:mean 상담사입니다. 오늘은 어떤 주제에 대해 이야기 나누고 싶으신가요?
+                    </div>
+                    <div class="message-time">10:00</div>
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="메시지를 입력하세요...">
+                <button id="sendButton">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 리포트 화면 (처음에는 숨김) -->
+        <div class="report-section hidden" id="reportScreen">
+            <div class="report-header">
+                <h2>대화 리포트</h2>
+                <div class="report-date">2025년 5월 20일</div>
+            </div>
+            <div class="report-content">
+                <div class="report-card">
+                    <h3>대화 주제</h3>
+                    <p>의사소통 방식의 차이</p>
+                </div>
+                <div class="report-card">
+                    <h3>핵심 인사이트</h3>
+                    <ul>
+                        <li>파트너 A는 직접적인 표현을 선호함</li>
+                        <li>파트너 B는 간접적인 표현과 공감을 원함</li>
+                        <li>두 사람 모두 상대의 의견을 존중하려는 의지가 있음</li>
+                    </ul>
+                </div>
+                <div class="report-card">
+                    <h3>제안 사항</h3>
+                    <ol>
+                        <li>대화 시작 전 서로의 감정 상태 확인하기</li>
+                        <li>상대방의 말에 즉각 반응하기 전에 3초 기다려보기</li>
+                        <li>주 1회 정기적인 대화 시간 마련하기</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="back-to-chat">
+                <button id="backToChatButton">대화로 돌아가기</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
