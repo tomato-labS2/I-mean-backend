@@ -31,11 +31,11 @@ public class Members {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "members_role", nullable = false)
-    private MembersRole membersRole = MembersRole.MEMBERS;
+    private MembersRole membersRole;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "members_status", nullable = false)
-    private MembersStatus membersStatus = MembersStatus.ACTIVE;
+    private MembersStatus membersStatus;
 
     @Column(name = "couple_code", nullable = true)
     private String coupleCode;

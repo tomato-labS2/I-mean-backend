@@ -1,21 +1,17 @@
 package com.ohgiraffers.tomatolab_imean.auth.controller;
 
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import com.ohgiraffers.tomatolab_imean.common.dto.response.ApiResponseDTO;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
-@RequestMapping("/auth")
+@RestController
+@RequestMapping("/api/auth")
 public class AuthController {
 
-    @GetMapping("/login")
-    public void login() {}
-
-    @GetMapping("/fail")
-    public String loginFail(@RequestParam(value="message", required = false) String message, Model model) {
-        model.addAttribute("message", message);
-        return "auth/fail";
+    @GetMapping("/check")
+    public ResponseEntity<ApiResponseDTO<?>> checkAuthStatus() {
+        return ResponseEntity.ok(new ApiResponseDTO<>(true, "인증되었습니다.", null));
     }
 }
