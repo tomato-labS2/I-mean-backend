@@ -60,7 +60,7 @@ public class AuthDetails implements UserDetails {
     }
 
     /**
-     * 사용자 식별자 반환 (Spring Security에서는 username 필드로 사용)
+     * 사용자 식별자 반환
      */
     @Override
     public String getUsername() {

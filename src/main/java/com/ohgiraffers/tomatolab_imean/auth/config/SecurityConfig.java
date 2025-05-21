@@ -68,6 +68,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> {
                 // 공개 API 엔드포인트
                 auth.requestMatchers("/api/members/login", "/api/members/register").permitAll();
+                // 다단계 회원가입 경로 허용
+                auth.requestMatchers("/api/members/register/step1").permitAll();
+                auth.requestMatchers("/api/members/register/step2").permitAll();
+                auth.requestMatchers("/api/members/register/step3").permitAll();
+                auth.requestMatchers("/api/members/register/step4").permitAll();
                 auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll(); // CORS preflight 요청 허용
                 
                 // 인증이 필요한 API 엔드포인트
@@ -80,7 +85,8 @@ public class SecurityConfig {
                 // HTTP Basic 인증 활성화 (API 인증용)
             })
             .sessionManagement(session -> {
-                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED);
+                // 세션 생성 정책 변경: 항상 세션 생성
+                session.sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
             })
             .logout(logout -> {
                 logout.logoutRequestMatcher(new AntPathRequestMatcher("/api/logout"));

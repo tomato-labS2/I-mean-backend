@@ -12,6 +12,7 @@ import com.ohgiraffers.tomatolab_imean.members.model.dto.response.MemberResponse
 import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
 import com.ohgiraffers.tomatolab_imean.members.service.MembersService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -70,6 +72,16 @@ public class MembersController {
             
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
+            // 세션에 인증 정보를 명시적으로 저장
+            httpRequest.getSession(true).setAttribute(
+                "SPRING_SECURITY_CONTEXT", 
+                SecurityContextHolder.getContext()
+            );
+            
+            // 세션 정보 로깅
+            System.out.println("로그인 성공 - 세션 ID: " + httpRequest.getSession().getId());
+            System.out.println("세션 신규 생성: " + httpRequest.getSession().isNew());
+            
             // 사용자 정보 반환
             MemberResponseDTO responseDTO = new MemberResponseDTO(member);
             
@@ -79,36 +91,103 @@ public class MembersController {
                     .body(ApiResponseDTO.error("로그인 실패: 이메일 또는 비밀번호가 일치하지 않습니다."));
         }
     }
-    
-    /**
-     * 회원 가입 처리
-     */
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponseDTO<MemberResponseDTO>> register(
-            @RequestBody RegisterRequestDTO request) {
+
+
+    @PostMapping("/register/step1")
+    public ResponseEntity<ApiResponseDTO<String>> step1(HttpServletRequest request, @RequestBody RegisterRequestDTO requestdto) {
+        HttpSession session = request.getSession(true);
+        if (requestdto.getMembersEmail() == null || requestdto.getMembersEmail().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponseDTO.error("이메일을 입력해주세요"));
+        }
+
+        session.setAttribute("membersEmail",requestdto.getMembersEmail() );
+
+
+
+        return ResponseEntity.ok(
+                ApiResponseDTO.success("이메일 저장완료", requestdto.getMembersPass()));
+    }
+    @PostMapping("/register/step2")
+    public ResponseEntity<ApiResponseDTO<String>> step2(HttpServletRequest request, @RequestBody RegisterRequestDTO requestdto) {
+        HttpSession session = request.getSession(false);
+
+
+        if (session.getAttribute("membersEmail") == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponseDTO.error("세션이 만료되었거나 첫 단계부터 시작해주세요"));
+        }
+
+        // 비밀번호 검증 로직
+        if (requestdto.getMembersPass() == null || requestdto.getMembersPass().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponseDTO.error("비밀번호를 입력해주세요"));
+        }
+        session.setAttribute("membersNickName",requestdto.getMembersNickName() );
+
+
+        return ResponseEntity.ok(
+                ApiResponseDTO.success("닉네임 저장 완료", requestdto.getMembersNickName()));
+    }
+    @PostMapping("/register/step3")
+    public ResponseEntity<ApiResponseDTO<String>> step3(HttpServletRequest request, @RequestBody RegisterRequestDTO requestdto) {
+
+        HttpSession session = request.getSession(false);
+
+        if (requestdto.getMembersPass() == null || requestdto.getMembersPass().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponseDTO.error("비밀번호를 입력해주세요"));
+        }
+        session.setAttribute("membersPass",requestdto.getMembersPass() );
+
+
+        return ResponseEntity.ok(
+                ApiResponseDTO.success("비밀번호 저장 완료", requestdto.getMembersPass()));
+
+    }
+
+
+    @PostMapping("/register/step4")
+    public ResponseEntity<ApiResponseDTO<MemberResponseDTO>> step4(
+            HttpSession session, @RequestBody RegisterRequestDTO request) {
+
+        // 이전 단계 데이터 확인
+        String email = (String) session.getAttribute("membersEmail");
+        String password = (String) session.getAttribute("membersPass");
+        String nickname = (String) session.getAttribute("membersNickName");
+
+        if (email == null || password == null || nickname == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponseDTO.error("세션이 만료되었거나 필수 정보가 누락되었습니다"));
+        }
+
+        // 전화번호 저장
+        session.setAttribute("membersPhone", request.getMembersPhone());
+
         try {
-            // 회원 코드가 없는 경우 랜덤 생성
-            String membersCode = request.getMembersCode();
-            if (membersCode == null || membersCode.trim().isEmpty()) {
-                membersCode = generateRandomMembersCode();
-            }
-            
+            // 회원 코드 생성
+            String membersCode = generateRandomMembersCode();
+
+            // 회원 등록
             Members newMember = membersService.register(
-                membersCode,
-                request.getMembersPass(),
-                request.getMembersNickName(),
-                request.getMembersEmail(),
-                request.getMembersPhone()
+                    membersCode,
+                    password,
+                    nickname,
+                    email,
+                    request.getMembersPhone()
             );
-            
+
+            // 회원가입 세션 데이터 정리
+            session.removeAttribute("membersEmail");
+            session.removeAttribute("membersPass");
+            session.removeAttribute("membersNickName");
+            session.removeAttribute("membersPhone");
+
             MemberResponseDTO responseDTO = new MemberResponseDTO(newMember);
             return ResponseEntity.ok(ApiResponseDTO.success("회원 가입 성공", responseDTO));
         } catch (Exception e) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponseDTO.error("회원 가입 실패: " + e.getMessage()));
         }
+
     }
-    
     /**
      * 회원 프로필 조회
      */

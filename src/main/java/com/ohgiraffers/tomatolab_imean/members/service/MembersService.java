@@ -35,9 +35,11 @@ public class MembersService {
         if (membersRepository.existsByMembersCode(membersCode)) {
             throw new IllegalArgumentException("이미 사용 중인 회원 코드입니다.");
         }
+
         if (membersRepository.existsByMembersEmail(membersEmail)) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
+
         if (membersRepository.existsByMembersPhone(membersPhone)) {
             throw new IllegalArgumentException("이미 사용 중인 전화번호입니다.");
         }
