@@ -11,8 +11,6 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
-    env:
-      PROFILE: dev  # 환경 변수 설정 (build.gradle에서 참조)
 
     steps:
       - uses: actions/checkout@v4  # 최신 버전 v4 사용
