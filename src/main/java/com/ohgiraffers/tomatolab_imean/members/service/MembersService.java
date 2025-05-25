@@ -1,8 +1,8 @@
 package com.ohgiraffers.tomatolab_imean.members.service;
 
-import com.ohgiraffers.tomatolab_imean.members.model.dto.LoginMembersDTO;
-import com.ohgiraffers.tomatolab_imean.members.model.dto.MembersDTO;
-import com.ohgiraffers.tomatolab_imean.members.model.dto.SinupDTO;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MembersRole;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MembersStatus;
+import com.ohgiraffers.tomatolab_imean.members.model.dto.request.LoginRequestDTO;
 import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
 import com.ohgiraffers.tomatolab_imean.members.repository.MembersRepository;
 import jakarta.transaction.Transactional;
@@ -12,12 +12,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 public class MembersService {
 
-    private MembersRepository membersRepository;
+    private final MembersRepository membersRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -25,94 +24,119 @@ public class MembersService {
         this.membersRepository = membersRepository;
         this.passwordEncoder = passwordEncoder;
     }
-
+    
+    /**
+     * API용 회원 가입 메서드
+     */
     @Transactional
-    public Long registerMembers(SinupDTO sinupDTO) {
-        if (membersRepository.existsByMembersCode(sinupDTO.getMembersCode())) {
-            return -1L;
-        }
-        else if (membersRepository.existsByMembersEmail(sinupDTO.getMembersEmail())) {
-            return -2L;
-        }
-        else if (membersRepository.existsByMembersPhone(sinupDTO.getMembersPhone())) {
-            return -3L;
+    public Members register(String membersCode, String membersPass, String membersNickName, 
+                          String membersEmail, String membersPhone) {
+        // 중복 검사
+        if (membersRepository.existsByMembersCode(membersCode)) {
+            throw new IllegalArgumentException("이미 사용 중인 회원 코드입니다.");
         }
 
-        try {
-            Members members = new Members(
-                    sinupDTO.getMembersCode(),
-                    passwordEncoder.encode(sinupDTO.getMembersPassword()),
-                    sinupDTO.getMembersNickName(), // 변경된 부분: 이름 필드가 NickName으로 되어 있음
-                    sinupDTO.getMembersEmail(),
-                    sinupDTO.getMembersPhone(),
-                    sinupDTO.getMembersStatus()
-            );
-
-            Members savedMembers = membersRepository.save(members);
-            return savedMembers.getMembersId();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return 0L;
+        if (membersRepository.existsByMembersEmail(membersEmail)) {
+            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
+
+        if (membersRepository.existsByMembersPhone(membersPhone)) {
+            throw new IllegalArgumentException("이미 사용 중인 전화번호입니다.");
+        }
+
+        // 회원 생성
+        Members member = new Members();
+        member.setMembersCode(membersCode);
+        member.setMembersPass(passwordEncoder.encode(membersPass));
+        member.setMembersNickName(membersNickName);
+        member.setMembersEmail(membersEmail);
+        member.setMembersPhone(membersPhone);
+        member.setMembersRole(MembersRole.MEMBERS);
+        member.setMembersStatus(MembersStatus.ACTIVE);
+        member.setMembersCreatedAt(LocalDateTime.now());
+
+        return membersRepository.save(member);
     }
-
-    public MembersDTO findById(Long membersId) {
-        Optional<Members> members = membersRepository.findById(membersId);
-
-        return members.map(m -> new MembersDTO(
-                m.getMembersId(),
-                m.getMembersCode(),
-                m.getMembersPass(),
-                m.getMembersNickName(),
-                m.getMembersEmail(),
-                m.getMembersPhone(),
-                m.getMembersRole(),
-                m.getMembersStatus(),
-                m.getCoupleCode(),
-                m.getMembersUpdatedAt(),
-                m.getMembersCreatedAt(),
-                m.getMembersDeletedAt()
-        )).orElse(null);
-    }
-
+    
+    /**
+     * API용 프로필 업데이트 메서드
+     */
     @Transactional
-    public boolean updateProfile(Long membersId, MembersDTO membersDTO) {
-        Members members = membersRepository.findById(membersId).orElse(null);
-        if (members == null) {
-            return false;
+    public Members updateMemberProfile(Long membersId, String newPassword, String email, String phone) {
+        Members member = membersRepository.findById(membersId)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        
+        // 비밀번호 업데이트 (제공된 경우)
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            member.setMembersPass(passwordEncoder.encode(newPassword));
         }
-
-        // 비밀번호가 제공된 경우 업데이트
-        if (membersDTO.getMembersPass() != null && !membersDTO.getMembersPass().trim().isEmpty()) {
-            members.setMembersPass(passwordEncoder.encode(membersDTO.getMembersPass()));
+        
+        // 이메일 및 전화번호 업데이트
+        if (email != null && !email.equals(member.getMembersEmail())) {
+            // 이메일 중복 확인
+            if (membersRepository.existsByMembersEmail(email) && 
+                !member.getMembersEmail().equals(email)) {
+                throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+            }
+            member.setMembersEmail(email);
         }
-
-        // 일반 필드 업데이트
-        members.setMembersEmail(membersDTO.getMembersEmail());
-        members.setMembersPhone(membersDTO.getMembersPhone());
-        members.setMembersUpdatedAt(LocalDateTime.now());
-
-        membersRepository.save(members);
-        return true;
+        
+        if (phone != null && !phone.equals(member.getMembersPhone())) {
+            // 전화번호 중복 확인
+            if (membersRepository.existsByMembersPhone(phone) && 
+                !member.getMembersPhone().equals(phone)) {
+                throw new IllegalArgumentException("이미 사용 중인 전화번호입니다.");
+            }
+            member.setMembersPhone(phone);
+        }
+        
+        // 업데이트 시간 설정
+        member.setMembersUpdatedAt(LocalDateTime.now());
+        
+        return membersRepository.save(member);
     }
 
+    /**
+     * ID로 회원 조회
+     */
+    public Members findById(Long id) {
+        return membersRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+    }
+
+    /**
+     * 회원 코드로 회원 검색
+     */
     public Members findByCode(String code) throws ChangeSetPersister.NotFoundException {
         return membersRepository.findByMembersCode(code)
                 .orElseThrow(() -> new ChangeSetPersister.NotFoundException());
     }
+    
+    /**
+     * 이메일로 회원 검색
+     */
+    public Members findByEmail(String email) throws ChangeSetPersister.NotFoundException {
+        return membersRepository.findByMembersEmail(email)
+                .orElseThrow(() -> new ChangeSetPersister.NotFoundException());
+    }
+    
+    /**
+     * 이메일 또는 전화번호 중복 확인
+     */
+    public boolean isEmailAvailable(String email) {
+        return !membersRepository.existsByMembersEmail(email);
+    }
+    
+    public boolean isPhoneAvailable(String phone) {
+        return !membersRepository.existsByMembersPhone(phone);
+    }
 
-    public LoginMembersDTO findByMembersCode(String membersCode) {
-        Optional<Members> members = membersRepository.findByMembersCode(membersCode);
-        
-        return members.map(m -> new LoginMembersDTO(
-                m.getMembersId(),
-                m.getMembersCode(),
-                m.getMembersPass(),
-                m.getMembersNickName(),
-                m.getMembersEmail(),
-                m.getMembersPhone(),
-                m.getMembersRole(),
-                m.getMembersStatus()
-        )).orElse(null);
+
+    
+    /**
+     * 회원코드 중복 확인
+     */
+    public boolean isCodeAvailable(String code) {
+        return !membersRepository.existsByMembersCode(code);
     }
 }

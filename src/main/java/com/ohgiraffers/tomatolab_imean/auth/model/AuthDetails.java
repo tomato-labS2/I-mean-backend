@@ -2,8 +2,6 @@ package com.ohgiraffers.tomatolab_imean.auth.model;
 
 import com.ohgiraffers.tomatolab_imean.members.model.common.MembersRole;
 import com.ohgiraffers.tomatolab_imean.members.model.common.MembersStatus;
-import com.ohgiraffers.tomatolab_imean.members.model.dto.LoginMembersDTO;
-import com.ohgiraffers.tomatolab_imean.members.model.dto.MembersDTO;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,99 +10,109 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Spring Security에서 사용자 인증 정보를 담는 클래스
+ */
 public class AuthDetails implements UserDetails {
 
-    private LoginMembersDTO loginMembersDTO;
-    private MembersDTO membersDTO;
+    private Long membersId;
+    private String membersCode;
+    private String membersPass;
+    private MembersRole membersRole;
+    private MembersStatus membersStatus;
 
-    public AuthDetails(LoginMembersDTO loginMembersDTO, MembersDTO membersDTO) {
-        this.loginMembersDTO = loginMembersDTO;
-        this.membersDTO = membersDTO;
+    /**
+     * 생성자
+     */
+    public AuthDetails(Long membersId, String membersCode, String membersPass, 
+                       MembersRole membersRole, MembersStatus membersStatus) {
+        this.membersId = membersId;
+        this.membersCode = membersCode;
+        this.membersPass = membersPass;
+        this.membersRole = membersRole;
+        this.membersStatus = membersStatus;
     }
 
-    public AuthDetails() {}
-
-    public AuthDetails(LoginMembersDTO loginMembersDTO) {
-        this.loginMembersDTO = loginMembersDTO;
-    }
-
-    public LoginMembersDTO getLoginMembersDTO() {
-        return loginMembersDTO;
-    }
-
-    public void setLoginMembersDTO(LoginMembersDTO loginMembersDTO) {
-        this.loginMembersDTO = loginMembersDTO;
-    }
-
-    // 권한 정보 반환
+    /**
+     * 권한 정보 반환
+     */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         List<GrantedAuthority> authorities = new ArrayList<>();
 
-        MembersStatus status = loginMembersDTO.getMembersStatus();
-        MembersRole role = loginMembersDTO.getMembersRole();
-
-        // 기본 권한 추가
-        authorities.add(new SimpleGrantedAuthority(status.toString()));
-
-//        // 재직중 상태인 경우에만 추가 권한 부여
-//        if (MembersStatus.재직중.toString().equals(status.toString())) {
-//            // 통합 부서는 관리자 직책만 가질 수 있음
-//            // 통합 부서 + 관리자인 경우 모든 도메인 접근 권한 부여
-//            if ("통합".equals(part) && "관리자".equals(role.toString())) {
-//                authorities.add(new SimpleGrantedAuthority("통합_관리자"));
-//            }
-//            // 일반 부서의 경우 부서 + 직책 조합으로 권한 부여
-//            else {
-//                authorities.add(new SimpleGrantedAuthority(part + "_" + role));
-//            }
-//        }
+        // 역할 기반 권한 추가 (ROLE_ 접두사 필요)
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + membersRole.name()));
+        
+        // 상태 기반 권한 추가
+        authorities.add(new SimpleGrantedAuthority("STATUS_" + membersStatus.name()));
+        
+        // 커플 권한은 서비스 로직에서 별도 처리
 
         return authorities;
     }
 
-    // 비밀번호 반환
+    /**
+     * 비밀번호 반환
+     */
     @Override
     public String getPassword() {
-        return loginMembersDTO.getMembersPass();
+        return membersPass;
     }
 
-    // 이름(유저코드) 반환
+    /**
+     * 사용자 식별자 반환
+     */
     @Override
     public String getUsername() {
-        return loginMembersDTO.getMembersNickName();
+        return membersCode; // 로그인 식별자로 membersCode 사용
     }
 
-    // 계정 만료 여부를 표현하는 메서드
+    /**
+     * 계정 만료 여부
+     */
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return true; // 계정 만료 기능 사용하지 않음
     }
 
-    // 잠겨있는 계정을 확인하는 메서드
+    /**
+     * 계정 잠금 여부
+     */
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return MembersStatus.ACTIVE.equals(membersStatus);
     }
 
-    // 탈퇴 계정 여부를 표현하는 메서드
+    /**
+     * 자격 증명(비밀번호) 만료 여부
+     */
     @Override
     public boolean isCredentialsNonExpired() {
-        return true;
+        return true; // 비밀번호 만료 기능 사용하지 않음
     }
 
-    // 계정 비활성화 여부로 사용자가 사용할 수 없는 상태
+    /**
+     * 계정 활성화 여부
+     */
     @Override
     public boolean isEnabled() {
-        return true;
+        return MembersStatus.ACTIVE.equals(membersStatus);
+    }
+
+    // Getter 메서드
+    public Long getMembersId() {
+        return membersId;
     }
 
     public String getMembersCode() {
-        return loginMembersDTO.getMembersCode();
+        return membersCode;
     }
-
-    // id 반환
-    public Long getMembersId() {
-        return loginMembersDTO.getMembersId();
+    
+    public MembersRole getMembersRole() {
+        return membersRole;
+    }
+    
+    public MembersStatus getMembersStatus() {
+        return membersStatus;
     }
 }
