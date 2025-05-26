@@ -1,7 +1,8 @@
 package com.ohgiraffers.tomatolab_imean.members.model.entity;
 
-import com.ohgiraffers.tomatolab_imean.members.model.common.MembersRole;
-import com.ohgiraffers.tomatolab_imean.members.model.common.MembersStatus;
+import com.ohgiraffers.tomatolab_imean.couple.model.entity.Couple;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MemberRole;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -11,174 +12,171 @@ import java.time.LocalDateTime;
 public class Members {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "members_id")
-    private Long membersId;
+    @Column(name = "member_id")
+    private Long memberId;
 
-    @Column(name = "members_code", unique = true, nullable = false)
-    private String membersCode;
+    @Column(name = "member_code", unique = true, nullable = false)
+    private String memberCode;
 
-    @Column(name = "members_pass", nullable = false)
-    private String membersPass;
+    @Column(name = "member_pass", nullable = false)
+    private String memberPass;
 
-    @Column(name = "members_nickname", nullable = false)
-    private String membersNickName;
+    @Column(name = "member_nickname", nullable = false)
+    private String memberNickName;
 
-    @Column(name = "members_email", nullable = false)
-    private String membersEmail;
+    @Column(name = "member_email", nullable = false)
+    private String memberEmail;
 
-    @Column(name = "members_phone", nullable = false)
-    private String membersPhone;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "members_role", nullable = false)
-    private MembersRole membersRole;
+    @Column(name = "member_phone", nullable = false)
+    private String memberPhone;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "members_status", nullable = false)
-    private MembersStatus membersStatus;
+    @Column(name = "member_role", nullable = false)
+    private MemberRole memberRole;
 
-    @Column(name = "couple_code", nullable = true)
-    private String coupleCode;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "member_status", nullable = false)
+    private MemberStatus memberStatus;
 
-    @Column(name = "members_updatedat", nullable = true)
-    private LocalDateTime membersUpdatedAt;
 
-    @Column(name = "members_created_at", nullable = false)
-    private LocalDateTime membersCreatedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "couple_id", nullable = true)
+    private Couple coupleId;
 
-    @Column(name = "members_deletedat", nullable = true)
-    private LocalDateTime membersDeletedAt;
+    @Column(name = "member_updatedat", nullable = true)
+    private LocalDateTime memberUpdatedAt;
+
+    @Column(name = "member_created_at", nullable = false)
+    private LocalDateTime memberCreatedAt;
+
+    @Column(name = "member_deletedat", nullable = true)
+    private LocalDateTime memberDeletedAt;
 
     public Members() {
     }
 
-    public Members(String membersCode, String membersPass) {
-        this.membersCode = membersCode;
-        this.membersPass = membersPass;
+    public Members(String membersCode, String memberPass) {
+        this.memberCode = membersCode;
+        this.memberPass = memberPass;
     }
 
 
-    public Members(Long membersId, String membersCode, String membersPass, String membersNickName, String membersEmail, String membersPhone, MembersRole membersRole, MembersStatus membersStatus, String coupleCode, LocalDateTime membersUpdatedAt, LocalDateTime membersCreatedAt, LocalDateTime membersDeletedA) {
-        this.membersId = membersId;
-        this.membersCode = membersCode;
-        this.membersPass = membersPass;
-        this.membersNickName = membersNickName;
-        this.membersEmail = membersEmail;
-        this.membersPhone = membersPhone;
-        this.membersRole = membersRole;
-        this.membersStatus = membersStatus;
-        this.coupleCode = coupleCode;
-        this.membersUpdatedAt = membersUpdatedAt;
-        this.membersCreatedAt = membersCreatedAt;
-        this.membersDeletedAt = membersDeletedAt;
+    public Members(String membersCode, String memberPass, String memberNickName, String memberEmail, String memberPhone, MemberRole memberRole, MemberStatus memberStatus, Couple coupleId, LocalDateTime memberUpdatedAt, LocalDateTime memberCreatedAt, LocalDateTime membersDeletedA) {
+        this.memberCode = membersCode;
+        this.memberPass = memberPass;
+        this.memberNickName = memberNickName;
+        this.memberEmail = memberEmail;
+        this.memberPhone = memberPhone;
+        this.memberRole = memberRole;
+        this.memberStatus = memberStatus;
+        this.coupleId = coupleId;
+        this.memberUpdatedAt = memberUpdatedAt;
+        this.memberCreatedAt = memberCreatedAt;
+        this.memberDeletedAt = memberDeletedAt;
 
     }
 
-    public Members(String membersCode, String membersPass, String membersNickName, String membersEmail, String membersPhone, String membersStatus) {
-        this.membersCode = membersCode;
-        this.membersPass = membersPass;
-        this.membersNickName = membersNickName;
-        this.membersEmail = membersEmail;
-        this.membersPhone = membersPhone;
-        this.membersRole = MembersRole.valueOf("USER"); // DEFAULT를 USER로 변경
-        this.membersStatus = MembersStatus.valueOf("ACTIVE"); // 항상 ACTIVE로 설정
-        this.membersCreatedAt = LocalDateTime.now(); // 생성 시간 설정
+    public Members(String membersCode, String memberPass, String memberNickName, String memberEmail, String memberPhone, String memberStatus) {
+        this.memberCode = membersCode;
+        this.memberPass = memberPass;
+        this.memberNickName = memberNickName;
+        this.memberEmail = memberEmail;
+        this.memberPhone = memberPhone;
+        this.memberRole = MemberRole.valueOf("USER"); // DEFAULT를 USER로 변경
+        this.memberStatus = com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.valueOf("ACTIVE"); // 항상 ACTIVE로 설정
+        this.memberCreatedAt = LocalDateTime.now(); // 생성 시간 설정
     }
 
-    public Long getMembersId() {
-        return membersId;
+    public Long getMemberId() {
+        return memberId;
     }
 
-    public void setMembersId(Long memberId) {
-        this.membersId = memberId;
+    public String getMemberCode() {
+        return memberCode;
     }
 
-    public String getMembersCode() {
-        return membersCode;
+    public void setMemberCode(String membersCode) {
+        this.memberCode = membersCode;
     }
 
-    public void setMembersCode(String membersCode) {
-        this.membersCode = membersCode;
+    public String getMemberPass() {
+        return memberPass;
     }
 
-    public String getMembersPass() {
-        return membersPass;
+    public void setMemberPass(String membersPass) {
+        this.memberPass = membersPass;
     }
 
-    public void setMembersPass(String membersPass) {
-        this.membersPass = membersPass;
+    public String getMemberNickName() {
+        return memberNickName;
     }
 
-    public String getMembersNickName() {
-        return membersNickName;
+    public void setMemberNickName(String membersNickName) {
+        this.memberNickName = membersNickName;
     }
 
-    public void setMembersNickName(String membersNickName) {
-        this.membersNickName = membersNickName;
+    public String getMemberEmail() {
+        return memberEmail;
     }
 
-    public String getMembersEmail() {
-        return membersEmail;
+    public void setMemberEmail(String membersEmail) {
+        this.memberEmail = membersEmail;
     }
 
-    public void setMembersEmail(String membersEmail) {
-        this.membersEmail = membersEmail;
+    public String getMemberPhone() {
+        return memberPhone;
     }
 
-    public String getMembersPhone() {
-        return membersPhone;
+    public void setMemberPhone(String membersPhone) {
+        this.memberPhone = membersPhone;
     }
 
-    public void setMembersPhone(String membersPhone) {
-        this.membersPhone = membersPhone;
+    public MemberRole getMemberRole() {
+        return memberRole;
     }
 
-    public MembersRole getMembersRole() {
-        return membersRole;
+    public void setMemberRole(MemberRole memberRole) {
+        this.memberRole = memberRole;
     }
 
-    public void setMembersRole(MembersRole membersRole) {
-        this.membersRole = membersRole;
+    public MemberStatus getMemberStatus() {
+        return memberStatus;
     }
 
-    public MembersStatus getMembersStatus() {
-        return membersStatus;
+    public void setMemberStatus(MemberStatus memberStatus) {
+        this.memberStatus = memberStatus;
     }
 
-    public void setMembersStatus(MembersStatus membersStatus) {
-        this.membersStatus = membersStatus;
+    public Couple getCoupleId() {
+        return coupleId;
     }
 
-    public String getCoupleCode() {
-        return coupleCode;
+    public void setCoupleId(Couple coupleCode) {
+        this.coupleId = coupleCode;
     }
 
-    public void setCoupleCode(String coupleCode) {
-        this.coupleCode = coupleCode;
+    public LocalDateTime getMemberUpdatedAt() {
+        return memberUpdatedAt;
     }
 
-    public LocalDateTime getMembersUpdatedAt() {
-        return membersUpdatedAt;
+    public void setMemberUpdatedAt(LocalDateTime membersUpdatedAt) {
+        this.memberUpdatedAt = membersUpdatedAt;
     }
 
-    public void setMembersUpdatedAt(LocalDateTime membersUpdatedAt) {
-        this.membersUpdatedAt = membersUpdatedAt;
+    public LocalDateTime getMemberCreatedAt() {
+        return memberCreatedAt;
     }
 
-    public LocalDateTime getMembersCreatedAt() {
-        return membersCreatedAt;
+    public void setMemberCreatedAt(LocalDateTime membersCreatedAt) {
+        this.memberCreatedAt = membersCreatedAt;
     }
 
-    public void setMembersCreatedAt(LocalDateTime membersCreatedAt) {
-        this.membersCreatedAt = membersCreatedAt;
+    public LocalDateTime getMemberDeletedAt() {
+        return memberDeletedAt;
     }
 
-    public LocalDateTime getMembersDeletedAt() {
-        return membersDeletedAt;
-    }
-
-    public void setMembersDeletedAt(LocalDateTime membersDeletedAt) {
-        this.membersDeletedAt = membersDeletedAt;
+    public void setMemberDeletedAt(LocalDateTime membersDeletedAt) {
+        this.memberDeletedAt = membersDeletedAt;
     }
 
 
@@ -186,18 +184,18 @@ public class Members {
     @Override
     public String toString() {
         return "Members{" +
-                "memberId=" + membersId +
-                ", membersCode='" + membersCode + '\'' +
-                ", membersPass='" + membersPass + '\'' +
-                ", membersNickName='" + membersNickName + '\'' +
-                ", membersEmail='" + membersEmail + '\'' +
-                ", membersPhone='" + membersPhone + '\'' +
-                ", membersRole=" + membersRole +
-                ", membersStatus=" + membersStatus +
-                ", coupleCode='" + coupleCode + '\'' +
-                ", membersUpdatedAt=" + membersUpdatedAt +
-                ", membersCreatedAt=" + membersCreatedAt +
-                ", membersDeletedAt=" + membersDeletedAt;
+                "memberId=" + memberId +
+                ", membersCode='" + memberCode + '\'' +
+                ", membersPass='" + memberPass + '\'' +
+                ", membersNickName='" + memberNickName + '\'' +
+                ", membersEmail='" + memberEmail + '\'' +
+                ", membersPhone='" + memberPhone + '\'' +
+                ", membersRole=" + memberRole +
+                ", membersStatus=" + memberStatus +
+                ", coupleId='" + coupleId + '\'' +
+                ", membersUpdatedAt=" + memberUpdatedAt +
+                ", membersCreatedAt=" + memberCreatedAt +
+                ", membersDeletedAt=" + memberDeletedAt;
 
     }
 }

@@ -1,7 +1,7 @@
 package com.ohgiraffers.tomatolab_imean.auth.model;
 
-import com.ohgiraffers.tomatolab_imean.members.model.common.MembersRole;
-import com.ohgiraffers.tomatolab_imean.members.model.common.MembersStatus;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MemberRole;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,22 +15,22 @@ import java.util.List;
  */
 public class AuthDetails implements UserDetails {
 
-    private Long membersId;
-    private String membersCode;
-    private String membersPass;
-    private MembersRole membersRole;
-    private MembersStatus membersStatus;
+    private Long memberId;
+    private String memberCode;
+    private String memberPass;
+    private MemberRole memberRole;
+    private MemberStatus memberStatus;
 
     /**
      * 생성자
      */
-    public AuthDetails(Long membersId, String membersCode, String membersPass, 
-                       MembersRole membersRole, MembersStatus membersStatus) {
-        this.membersId = membersId;
-        this.membersCode = membersCode;
-        this.membersPass = membersPass;
-        this.membersRole = membersRole;
-        this.membersStatus = membersStatus;
+    public AuthDetails(Long memberId, String memberCode, String memberPass,
+                       MemberRole memberRole, MemberStatus memberStatus) {
+        this.memberId = memberId;
+        this.memberCode = memberCode;
+        this.memberPass = memberPass;
+        this.memberRole = memberRole;
+        this.memberStatus = memberStatus;
     }
 
     /**
@@ -41,10 +41,10 @@ public class AuthDetails implements UserDetails {
         List<GrantedAuthority> authorities = new ArrayList<>();
 
         // 역할 기반 권한 추가 (ROLE_ 접두사 필요)
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + membersRole.name()));
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + memberRole.name()));
         
         // 상태 기반 권한 추가
-        authorities.add(new SimpleGrantedAuthority("STATUS_" + membersStatus.name()));
+        authorities.add(new SimpleGrantedAuthority("STATUS_" + memberStatus.name()));
         
         // 커플 권한은 서비스 로직에서 별도 처리
 
@@ -56,7 +56,7 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public String getPassword() {
-        return membersPass;
+        return memberPass;
     }
 
     /**
@@ -64,7 +64,7 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public String getUsername() {
-        return membersCode; // 로그인 식별자로 membersCode 사용
+        return memberCode; // 로그인 식별자로 membersCode 사용
     }
 
     /**
@@ -80,7 +80,7 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public boolean isAccountNonLocked() {
-        return MembersStatus.ACTIVE.equals(membersStatus);
+        return com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.ACTIVE.equals(memberStatus);
     }
 
     /**
@@ -96,23 +96,23 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public boolean isEnabled() {
-        return MembersStatus.ACTIVE.equals(membersStatus);
+        return com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.ACTIVE.equals(memberStatus);
     }
 
     // Getter 메서드
-    public Long getMembersId() {
-        return membersId;
+    public Long getMemberId() {
+        return memberId;
     }
 
-    public String getMembersCode() {
-        return membersCode;
+    public String getMemberCode() {
+        return memberCode;
     }
     
-    public MembersRole getMembersRole() {
-        return membersRole;
+    public MemberRole getMemberRole() {
+        return memberRole;
     }
     
-    public MembersStatus getMembersStatus() {
-        return membersStatus;
+    public MemberStatus getMemberStatus() {
+        return memberStatus;
     }
 }

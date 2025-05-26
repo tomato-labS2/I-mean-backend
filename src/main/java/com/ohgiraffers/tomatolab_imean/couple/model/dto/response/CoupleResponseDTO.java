@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 
 public class CoupleResponseDTO {
     private Long coupleId;
-    private String coupleCode;
     private LocalDateTime createdAt;
     private String status;
     
@@ -16,7 +15,6 @@ public class CoupleResponseDTO {
     
     public CoupleResponseDTO(Couple couple) {
         this.coupleId = couple.getCoupleId();
-        this.coupleCode = couple.getCoupleCode();
         this.createdAt = couple.getCreatedAt();
         this.status = couple.getStatus().name();
     }
@@ -30,13 +28,6 @@ public class CoupleResponseDTO {
         this.coupleId = coupleId;
     }
 
-    public String getCoupleCode() {
-        return coupleCode;
-    }
-
-    public void setCoupleCode(String coupleCode) {
-        this.coupleCode = coupleCode;
-    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

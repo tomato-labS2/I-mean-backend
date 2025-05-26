@@ -9,7 +9,7 @@ import com.ohgiraffers.tomatolab_imean.couple.model.dto.response.CoupleResponseD
 import com.ohgiraffers.tomatolab_imean.couple.model.entity.Couple;
 import com.ohgiraffers.tomatolab_imean.couple.service.CoupleService;
 import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
-import com.ohgiraffers.tomatolab_imean.members.service.MembersService;
+import com.ohgiraffers.tomatolab_imean.members.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
@@ -25,12 +25,12 @@ import java.util.Optional;
 public class CoupleApiController {
 
     private final CoupleService coupleService;
-    private final MembersService membersService;
+    private final MemberService memberService;
 
     @Autowired
-    public CoupleApiController(CoupleService coupleService, MembersService membersService) {
+    public CoupleApiController(CoupleService coupleService, MemberService memberService) {
         this.coupleService = coupleService;
-        this.membersService = membersService;
+        this.memberService = memberService;
     }
 
     /**
@@ -68,13 +68,13 @@ public class CoupleApiController {
             }
             
             Members currentMember = getCurrentMember(authentication);
-            System.out.println("현재 회원: ID=" + currentMember.getMembersId() + ", Code=" + currentMember.getMembersCode());
+            System.out.println("현재 회원: ID=" + currentMember.getMemberId() + ", Code=" + currentMember.getMemberCode());
             System.out.println("대상 회원 코드: " + requestDTO.getTargetMemberCode());
             
             Couple couple = coupleService.registerCouple(currentMember, requestDTO.getTargetMemberCode());
             CoupleResponseDTO responseDTO = new CoupleResponseDTO(couple);
             
-            System.out.println("커플 등록 성공: " + couple.getCoupleCode());
+
             return ResponseEntity.ok(ApiResponseDTO.success("커플 등록 성공", responseDTO));
         } catch (IllegalArgumentException e) {
             System.out.println("커플 등록 실패 (IllegalArgumentException): " + e.getMessage());
@@ -95,6 +95,9 @@ public class CoupleApiController {
                     .body(ApiResponseDTO.error("서버 오류: " + e.getMessage()));
         }
     }
+
+
+
 
     /**
      * 커플 정보 조회
@@ -136,10 +139,10 @@ public class CoupleApiController {
             }
             
             AuthDetails authDetails = (AuthDetails) authentication.getPrincipal();
-            System.out.println("getCurrentMember - 인증된 사용자 코드: " + authDetails.getMembersCode());
+            System.out.println("getCurrentMember - 인증된 사용자 코드: " + authDetails.getMemberCode());
             
-            Members member = membersService.findByCode(authDetails.getMembersCode());
-            System.out.println("getCurrentMember - 회원 찾음: " + member.getMembersId());
+            Members member = memberService.findByCode(authDetails.getMemberCode());
+            System.out.println("getCurrentMember - 회원 찾음: " + member.getMemberId());
             return member;
         } catch (NotFoundException e) {
             System.out.println("getCurrentMember - 회원 정보를 찾을 수 없음");

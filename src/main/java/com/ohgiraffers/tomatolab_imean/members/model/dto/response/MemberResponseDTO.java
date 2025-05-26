@@ -5,52 +5,52 @@ import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
 import java.time.LocalDateTime;
 
 public class MemberResponseDTO {
-    private String membersCode;
-    private String membersNickName;
-    private String membersEmail;
-    private LocalDateTime membersCreatedAt;
+    private String memberCode;
+    private String memberNickName;
+    private String memberEmail;
+    private LocalDateTime memberCreatedAt;
     
     // 생성자
     public MemberResponseDTO() {
     }
     
     public MemberResponseDTO(Members member) {
-        this.membersCode = member.getMembersCode();
-        this.membersNickName = member.getMembersNickName();
-        this.membersEmail = member.getMembersEmail();
-        this.membersCreatedAt = member.getMembersCreatedAt();
+        this.memberCode = member.getMemberCode();
+        this.memberNickName = member.getMemberNickName();
+        this.memberEmail = member.getMemberEmail();
+        this.memberCreatedAt = member.getMemberCreatedAt();
     }
     
     // getter, setter
-    public String getMembersCode() {
-        return membersCode;
+    public String getMemberCode() {
+        return memberCode;
     }
 
-    public void setMembersCode(String membersCode) {
-        this.membersCode = membersCode;
+    public void setMemberCode(String memberCode) {
+        this.memberCode = memberCode;
     }
 
-    public String getMembersNickName() {
-        return membersNickName;
+    public String getMemberNickName() {
+        return memberNickName;
     }
 
-    public void setMembersNickName(String membersNickName) {
-        this.membersNickName = membersNickName;
+    public void setMemberNickName(String memberNickName) {
+        this.memberNickName = memberNickName;
     }
 
-    public String getMembersEmail() {
-        return membersEmail;
+    public String getMemberEmail() {
+        return memberEmail;
     }
 
-    public void setMembersEmail(String membersEmail) {
-        this.membersEmail = membersEmail;
+    public void setMemberEmail(String memberEmail) {
+        this.memberEmail = memberEmail;
     }
 
-    public LocalDateTime getMembersCreatedAt() {
-        return membersCreatedAt;
+    public LocalDateTime getMemberCreatedAt() {
+        return memberCreatedAt;
     }
 
-    public void setMembersCreatedAt(LocalDateTime membersCreatedAt) {
-        this.membersCreatedAt = membersCreatedAt;
+    public void setMemberCreatedAt(LocalDateTime memberCreatedAt) {
+        this.memberCreatedAt = memberCreatedAt;
     }
 }
