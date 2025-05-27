@@ -20,9 +20,10 @@ public class AuthDetails implements UserDetails {
     private String memberPass;
     private MemberRole memberRole;
     private MemberStatus memberStatus;
+    private String coupleStatus; // 추가: SINGLE or COUPLED
 
     /**
-     * 생성자
+     * 생성자 (기존 버전 - 하위 호환)
      */
     public AuthDetails(Long memberId, String memberCode, String memberPass,
                        MemberRole memberRole, MemberStatus memberStatus) {
@@ -31,6 +32,20 @@ public class AuthDetails implements UserDetails {
         this.memberPass = memberPass;
         this.memberRole = memberRole;
         this.memberStatus = memberStatus;
+        this.coupleStatus = "SINGLE"; // 기본값
+    }
+    
+    /**
+     * 생성자 (커플 상태 포함 버전)
+     */
+    public AuthDetails(Long memberId, String memberCode, String memberPass,
+                       MemberRole memberRole, MemberStatus memberStatus, String coupleStatus) {
+        this.memberId = memberId;
+        this.memberCode = memberCode;
+        this.memberPass = memberPass;
+        this.memberRole = memberRole;
+        this.memberStatus = memberStatus;
+        this.coupleStatus = coupleStatus;
     }
 
     /**
@@ -46,7 +61,8 @@ public class AuthDetails implements UserDetails {
         // 상태 기반 권한 추가
         authorities.add(new SimpleGrantedAuthority("STATUS_" + memberStatus.name()));
         
-        // 커플 권한은 서비스 로직에서 별도 처리
+        // 커플 상태 기반 권한 추가
+        authorities.add(new SimpleGrantedAuthority("COUPLE_" + coupleStatus));
 
         return authorities;
     }
@@ -114,5 +130,23 @@ public class AuthDetails implements UserDetails {
     
     public MemberStatus getMemberStatus() {
         return memberStatus;
+    }
+    
+    public String getCoupleStatus() {
+        return coupleStatus;
+    }
+    
+    /**
+     * 커플 관계에 있는지 확인
+     */
+    public boolean isInCouple() {
+        return "COUPLED".equals(coupleStatus);
+    }
+    
+    /**
+     * 싱글 상태인지 확인
+     */
+    public boolean isSingle() {
+        return "SINGLE".equals(coupleStatus);
     }
 }

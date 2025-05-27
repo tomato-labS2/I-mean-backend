@@ -36,7 +36,7 @@ public class JwtTokenProvider {
     }
     
     /**
-     * Access Token 생성
+     * Access Token 생성 (기존 버전 - 하위 호환)
      */
     public String createAccessToken(String memberCode) {
         Date now = new Date();
@@ -44,6 +44,23 @@ public class JwtTokenProvider {
         
         return Jwts.builder()
                 .setSubject(memberCode)
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(getSigningKey())
+                .compact();
+    }
+    
+    /**
+     * Access Token 생성 (커플 상태 포함 버전)
+     */
+    public String createAccessToken(String memberCode, String coupleStatus, String memberRole) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + jwtProperties.getAccessTokenExpiration());
+        
+        return Jwts.builder()
+                .setSubject(memberCode)
+                .claim("coupleStatus", coupleStatus)  // SINGLE or COUPLED
+                .claim("memberRole", memberRole)      // MEMBER, GENERAL_ADMIN, SUPER_ADMIN
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(getSigningKey())
@@ -84,6 +101,46 @@ public class JwtTokenProvider {
         } catch (Exception e) {
             logger.error("토큰에서 회원 코드 추출 실패: {}", e.getMessage());
             throw new InvalidTokenException("토큰에서 사용자 정보를 추출할 수 없습니다.", e);
+        }
+    }
+    
+    /**
+     * 토큰에서 커플 상태 추출
+     */
+    public String getCoupleStatusFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(getSigningKey())
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            return claims.get("coupleStatus", String.class);
+        } catch (ExpiredJwtException e) {
+            logger.warn("만료된 토큰에서 커플 상태 추출 시도: {}", e.getMessage());
+            throw new TokenExpiredException("Access Token", true);
+        } catch (Exception e) {
+            logger.debug("토큰에서 커플 상태 추출 실패 (구버전 토큰일 수 있음): {}", e.getMessage());
+            return "SINGLE"; // 기본값으로 SINGLE 반환
+        }
+    }
+    
+    /**
+     * 토큰에서 회원 역할 추출
+     */
+    public String getMemberRoleFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(getSigningKey())
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            return claims.get("memberRole", String.class);
+        } catch (ExpiredJwtException e) {
+            logger.warn("만료된 토큰에서 회원 역할 추출 시도: {}", e.getMessage());
+            throw new TokenExpiredException("Access Token", true);
+        } catch (Exception e) {
+            logger.debug("토큰에서 회원 역할 추출 실패 (구버전 토큰일 수 있음): {}", e.getMessage());
+            return "MEMBER"; // 기본값으로 MEMBER 반환
         }
     }
     

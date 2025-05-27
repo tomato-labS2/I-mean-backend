@@ -251,6 +251,37 @@ public class RefreshTokenService {
         }
     }
     
+    /**
+     * Refresh Token으로 새로운 Access Token 발급 (커플 상태 포함 버전)
+     * @param refreshTokenValue JWT Refresh Token 값
+     * @param memberCode 회원 코드
+     * @param coupleStatus 변경된 커플 상태
+     * @param memberRole 회원 역할
+     * @return 새로운 Access Token (커플 상태 포함)
+     */
+    public String refreshAccessTokenWithCoupleStatus(String refreshTokenValue, String memberCode, 
+                                                    String coupleStatus, String memberRole) {
+        try {
+            // 1. Refresh Token 검증
+            RefreshToken refreshToken = validateAndGetRefreshToken(refreshTokenValue);
+            
+            // 2. 새로운 Access Token 생성 (커플 상태 포함)
+            String newAccessToken = jwtTokenProvider.createAccessToken(memberCode, coupleStatus, memberRole);
+            
+            // 3. Refresh Token 사용 기록 업데이트
+            refreshToken.markAsUsed();
+            refreshTokenRepository.save(refreshToken);
+            
+            logger.info("Access Token 갱신 완료 (커플 상태 포함) - 회원: {}, 커플 상태: {}", memberCode, coupleStatus);
+            
+            return newAccessToken;
+            
+        } catch (Exception e) {
+            logger.error("Access Token 갱신 중 오류 발생 (커플 상태 포함): {}", e.getMessage());
+            throw new RuntimeException("토큰 갱신에 실패했습니다.", e);
+        }
+    }
+
     // ========== 스케줄링 메서드들 ==========
     
     /**

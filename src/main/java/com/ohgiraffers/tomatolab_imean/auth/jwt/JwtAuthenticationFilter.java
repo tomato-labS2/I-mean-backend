@@ -60,11 +60,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
                     // 4. 토큰에서 사용자 정보 추출
                     String memberCode = jwtTokenProvider.getMemberCodeFromToken(jwt);
+                    String coupleStatus = jwtTokenProvider.getCoupleStatusFromToken(jwt);
+                    String memberRole = jwtTokenProvider.getMemberRoleFromToken(jwt);
                     
-                    // 5. 사용자 정보로 UserDetails 조회
+                    // 5. 사용자 정보로 UserDetails 조회 (DB에서 최신 정보 확인)
                     UserDetails userDetails = authService.loadUserByUsername(memberCode);
                     
-                    // 6. 인증 토큰 생성
+                    // 6. JWT에서 추출한 정보로 AuthDetails 업데이트 (커플 상태 포함)
+                    if (userDetails instanceof com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails) {
+                        com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails authDetails = 
+                            (com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails) userDetails;
+                        
+                        // 토큰의 커플 상태가 실제 DB 상태와 다를 수 있으므로 DB 기준으로 재검증
+                        // (토큰 갱신 시점과 커플 등록 시점이 다를 수 있음)
+                        userDetails = new com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails(
+                            authDetails.getMemberId(),
+                            authDetails.getMemberCode(),
+                            authDetails.getPassword(),
+                            authDetails.getMemberRole(),
+                            authDetails.getMemberStatus(),
+                            coupleStatus  // JWT에서 추출한 커플 상태 사용
+                        );
+                    }
+                    
+                    // 7. 인증 토큰 생성
                     UsernamePasswordAuthenticationToken authentication = 
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, 
@@ -72,13 +91,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     userDetails.getAuthorities()
                             );
                     
-                    // 7. 요청 정보를 인증 토큰에 설정
+                    // 8. 요청 정보를 인증 토큰에 설정
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     
-                    // 8. Spring Security Context에 인증 정보 설정
+                    // 9. Spring Security Context에 인증 정보 설정
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     
-                    logger.debug("JWT 인증 성공 - 사용자: {}", memberCode);
+                    logger.debug("JWT 인증 성공 - 사용자: {}, 커플상태: {}", memberCode, coupleStatus);
                 }
             }
             

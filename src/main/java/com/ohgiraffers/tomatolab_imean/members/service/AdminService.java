@@ -96,7 +96,7 @@ public class AdminService {
         member.setMemberStatus(newStatus);
         member.setMemberUpdatedAt(LocalDateTime.now());
         
-        // 삭제 상태로 변경하는 경우 삭제 시간 설정
+        // 삭제 상태로 변경하는 경우 삭제 시간 설정(소프트 삭제)s
         if (newStatus == MemberStatus.DELETED) {
             member.setMemberDeletedAt(LocalDateTime.now());
         }
@@ -123,7 +123,6 @@ public class AdminService {
                 .map(CoupleResponseDTO::new)
                 .collect(Collectors.toList());
     }
-
     /*
      * Members 엔티티를 AdminResponseDTO로 변환하는 헬퍼 메서드
      */

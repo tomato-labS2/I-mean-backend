@@ -34,27 +34,17 @@ public class CoupleService {
         return coupleRepository.existsByMember1OrMember2(member, member);
     }
 
-    /**
-     * 커플 코드 생성
-     */
-//    private String generateCoupleCode() {
-//        StringBuilder sb = new StringBuilder();
-//        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-//        Random random = new Random();
-//
-//        for (int i = 0; i < 10; i++) {
-//            int index = random.nextInt(characters.length());
-//            sb.append(characters.charAt(index));
-//        }
-//
-//        return sb.toString();
-//    }
+
 
     /**
      * 멤버 ID로 커플 정보 조회
      */
     public Optional<Couple> findCoupleByMember(Members member) {
         return coupleRepository.findByMember1OrMember2(member, member);
+    }
+
+    public  Optional<Couple> findCoupleId(Long CoupleId) {
+        return coupleRepository.findById(CoupleId);
     }
 
     /**
@@ -103,6 +93,38 @@ public class CoupleService {
         memberService.save(targetMember);
         
         return savedCouple;
+    }
+
+    /**
+     * 커플 해제 처리
+     */
+    @Transactional
+    public void breakCouple(Members currentMember) throws NotFoundException {
+        // 현재 사용자의 커플 관계 조회
+        Optional<Couple> coupleOptional = findCoupleByMember(currentMember);
+        
+        if (coupleOptional.isEmpty()) {
+            throw new IllegalStateException("현재 커플 관계가 존재하지 않습니다.");
+        }
+        
+        Couple couple = coupleOptional.get();
+        
+        // 상대방 조회
+        Members partner = getPartner(couple, currentMember);
+        
+        // 커플 상태를 ENDED로 변경
+        couple.setStatus(CoupleStatus.ENDED);
+        coupleRepository.save(couple);
+        
+        // 두 멤버의 coupleId를 null로 설정
+        currentMember.setCoupleId(null);
+        partner.setCoupleId(null);
+        
+        // 멤버 정보 저장
+        memberService.save(currentMember);
+        memberService.save(partner);
+        
+        System.out.println("커플 해제 완료: " + currentMember.getMemberCode() + " <-> " + partner.getMemberCode());
     }
 
     /**

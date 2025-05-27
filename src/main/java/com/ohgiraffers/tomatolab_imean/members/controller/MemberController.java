@@ -89,8 +89,12 @@ public class MemberController {
                 new UsernamePasswordAuthenticationToken(member.getMemberCode(), request.getMemberPass())
             );
             
-            // JWT 토큰 생성 (DB 저장 포함)
-            String accessToken = jwtTokenProvider.createAccessToken(member.getMemberCode());
+            // JWT 토큰 생성 (커플 상태 포함)
+            String accessToken = jwtTokenProvider.createAccessToken(
+                member.getMemberCode(), 
+                member.getCoupleStatusString(), 
+                member.getMemberRole().name()
+            );
             String refreshToken = refreshTokenService.createAndSaveRefreshToken(member.getMemberCode());
 
 //            refreshTokenRepository.save(refreshToken);
@@ -142,8 +146,8 @@ public class MemberController {
                 // 중복되지 않음 - 정상
             }
             
-            // 3. 회원 코드 생성
-            String memberCode = generateRandomMemberCode();
+            // 3. 회원 코드 생성 (중복 체크 포함)
+            String memberCode = memberService.generateUniqueMemberCode();
             
             // 4. 회원 등록
             Members newMember = memberService.register(
@@ -154,8 +158,12 @@ public class MemberController {
                 request.getMemberPhone()
             );
             
-            // 5. JWT 토큰 생성 (회원가입 즉시 로그인 + DB 저장)
-            String accessToken = jwtTokenProvider.createAccessToken(memberCode);
+            // 5. JWT 토큰 생성 (회원가입 즉시 로그인 + 커플 상태 포함)
+            String accessToken = jwtTokenProvider.createAccessToken(
+                memberCode, 
+                newMember.getCoupleStatusString(), 
+                newMember.getMemberRole().name()
+            );
             String refreshToken = refreshTokenService.createAndSaveRefreshToken(memberCode);
             
             // 6. 토큰 만료 시간 계산
@@ -253,7 +261,7 @@ public class MemberController {
         }
     }
     
-    /**
+    /*
      * 프로필 업데이트
      */
     @PutMapping("/profile")
@@ -306,7 +314,7 @@ public class MemberController {
     
     // ========== 헬퍼 메서드들 ==========
     
-    /**
+    /*
      * 현재 인증된 회원 정보 조회 헬퍼 메서드
      */
     private Members getCurrentMember(Authentication authentication) {
@@ -322,7 +330,7 @@ public class MemberController {
         }
     }
     
-    /**
+    /*
      * 회원가입 요청 유효성 검사
      */
     private boolean isValidRegisterRequest(CompleteRegisterRequestDTO request) {
@@ -330,21 +338,5 @@ public class MemberController {
                request.getMemberPass() != null && !request.getMemberPass().trim().isEmpty() &&
                request.getMemberNickName() != null && !request.getMemberNickName().trim().isEmpty() &&
                request.getMemberPhone() != null && !request.getMemberPhone().trim().isEmpty();
-    }
-    
-    /**
-     * 랜덤 회원 코드 생성
-     */
-    private String generateRandomMemberCode() {
-        StringBuilder sb = new StringBuilder();
-        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        Random random = new Random();
-        
-        for (int i = 0; i < 6; i++) {
-            int index = random.nextInt(characters.length());
-            sb.append(characters.charAt(index));
-        }
-        
-        return sb.toString();
     }
 }

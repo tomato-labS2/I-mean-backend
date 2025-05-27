@@ -22,10 +22,13 @@ public class AuthController {
     
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final com.ohgiraffers.tomatolab_imean.members.service.MemberService memberService;
     
-    public AuthController(JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService) {
+    public AuthController(JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService,
+                         com.ohgiraffers.tomatolab_imean.members.service.MemberService memberService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;
+        this.memberService = memberService;
     }
     
     /**
@@ -57,14 +60,32 @@ public class AuthController {
                         .body(ApiResponseDTO.error("Refresh Token이 필요합니다."));
             }
             
-            // RefreshTokenService를 통한 토큰 갱신
-            String newAccessToken = refreshTokenService.refreshAccessToken(refreshToken);
-            long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
+            // 토큰에서 회원 코드 추출
+            String memberCode = jwtTokenProvider.getMemberCodeFromToken(refreshToken);
             
-            // 응답 생성
-            TokenResponseDTO tokenResponse = new TokenResponseDTO(newAccessToken, expiresIn);
-            
-            return ResponseEntity.ok(ApiResponseDTO.success("토큰 갱신 성공", tokenResponse));
+            // 회원 정보 조회해서 현재 커플 상태 확인
+            try {
+                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member = 
+                    memberService.findByCode(memberCode);
+                
+                // 새로운 Access Token 생성 (현재 커플 상태 포함)
+                String newAccessToken = jwtTokenProvider.createAccessToken(
+                    member.getMemberCode(),
+                    member.getCoupleStatusString(),
+                    member.getMemberRole().name()
+                );
+                
+                long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
+                
+                // 응답 생성
+                TokenResponseDTO tokenResponse = new TokenResponseDTO(newAccessToken, expiresIn);
+                
+                return ResponseEntity.ok(ApiResponseDTO.success("토큰 갱신 성공", tokenResponse));
+                
+            } catch (org.springframework.data.crossstore.ChangeSetPersister.NotFoundException e) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponseDTO.error("사용자 정보를 찾을 수 없습니다"));
+            }
             
         } catch (RefreshTokenNotFoundException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -90,17 +111,34 @@ public class AuthController {
                         .body(ApiResponseDTO.error("Refresh Token이 필요합니다."));
             }
             
-            // 토큰 로테이션 수행
-            String[] newTokens = refreshTokenService.rotateTokens(refreshToken);
-            String newAccessToken = newTokens[0];
-            String newRefreshToken = newTokens[1];
+            // 토큰에서 회원 코드 추출
+            String memberCode = jwtTokenProvider.getMemberCodeFromToken(refreshToken);
             
-            long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
-            
-            // 응답 생성 (새로운 Refresh Token 포함)
-            TokenResponseDTO tokenResponse = new TokenResponseDTO(newAccessToken, newRefreshToken, expiresIn);
-            
-            return ResponseEntity.ok(ApiResponseDTO.success("토큰 로테이션 성공", tokenResponse));
+            // 회원 정보 조회해서 현재 커플 상태 확인
+            try {
+                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member = 
+                    memberService.findByCode(memberCode);
+                
+                // 토큰 로테이션 수행
+                String[] newTokens = refreshTokenService.rotateTokens(refreshToken);
+                String newAccessToken = jwtTokenProvider.createAccessToken(
+                    member.getMemberCode(),
+                    member.getCoupleStatusString(),
+                    member.getMemberRole().name()
+                );
+                String newRefreshToken = newTokens[1];
+                
+                long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
+                
+                // 응답 생성 (새로운 Refresh Token 포함)
+                TokenResponseDTO tokenResponse = new TokenResponseDTO(newAccessToken, newRefreshToken, expiresIn);
+                
+                return ResponseEntity.ok(ApiResponseDTO.success("토큰 로테이션 성공", tokenResponse));
+                
+            } catch (org.springframework.data.crossstore.ChangeSetPersister.NotFoundException e) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponseDTO.error("사용자 정보를 찾을 수 없습니다"));
+            }
             
         } catch (RefreshTokenNotFoundException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

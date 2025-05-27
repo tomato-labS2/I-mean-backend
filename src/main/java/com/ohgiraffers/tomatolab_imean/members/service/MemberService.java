@@ -119,6 +119,42 @@ public class MemberService {
                 .orElseThrow(() -> new ChangeSetPersister.NotFoundException());
     }
 
+    /*
+     * 중복되지 않는 회원 코드 생성
+     */
+    public String generateUniqueMemberCode() {
+        String memberCode;
+        int attempts = 0;
+        int maxAttempts = 50; // 무한 루프 방지
+        
+        do {
+            memberCode = generateRandomMemberCode();
+            attempts++;
+            
+            if (attempts > maxAttempts) {
+                throw new RuntimeException("고유한 회원 코드 생성에 실패했습니다. 다시 시도해주세요.");
+            }
+        } while (memberRepository.existsByMemberCode(memberCode));
+        
+        return memberCode;
+    }
+    
+    /*
+     * 랜덤 회원 코드 생성 (6자리)
+     */
+    private String generateRandomMemberCode() {
+        StringBuilder sb = new StringBuilder();
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        java.util.Random random = new java.util.Random();
+        
+        for (int i = 0; i < 6; i++) {
+            int index = random.nextInt(characters.length());
+            sb.append(characters.charAt(index));
+        }
+        
+        return sb.toString();
+    }
+
     /**
      * 회원 정보 저장
      */

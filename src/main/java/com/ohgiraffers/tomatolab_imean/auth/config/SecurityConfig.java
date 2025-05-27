@@ -135,27 +135,14 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> {
                 // === 공개 접근 허용 경로 ===
                 
-                // 회원 관련 공개 API 전부 허용
+                // 회원 관련 공개 API
                 auth.requestMatchers("/api/member/login").permitAll();           // 로그인
                 auth.requestMatchers("/api/member/register").permitAll();        // 원스텝 회원가입
                 auth.requestMatchers("/api/member/check-email").permitAll();     // 이메일 중복 체크
 
-
-                auth.requestMatchers("/api/member/*").hasAnyAuthority(MemberRole.GENERAL_ADMIN.name());
-                auth.requestMatchers("/admin/*").hasRole(MemberRole.SUPER_ADMIN.name());
-
-
-                // admin으로 시작하는 경로는 어드민만 사용 가능
-
                 // JWT 토큰 관련 공개 API
                 auth.requestMatchers("/api/auth/refresh").permitAll();           // 토큰 갱신
                 
-                // 기존 다단계 회원가입 경로 (하위 호환성 위해 유지, 나중에 제거 예정)
-//                auth.requestMatchers("/api/member/register/email").permitAll();
-//                auth.requestMatchers("/api/member/register/nickname").permitAll();
-//                auth.requestMatchers("/api/member/register/password").permitAll();
-//                auth.requestMatchers("/api/member/register/phone").permitAll();
-//
                 // 공개 API (인증 없이 접근 가능)
                 auth.requestMatchers("/api/public/**").permitAll();
                 
@@ -165,12 +152,40 @@ public class SecurityConfig {
                 // 메인 페이지 등 (필요시)
                 auth.requestMatchers("/", "/index.html").permitAll();
                 
-                // === 인증 필요 경로 ===
+                // === 인증 필요 - 싱글 사용자도 접근 가능 ===
                 
-                // 모든 API는 기본적으로 인증 필요
-                auth.requestMatchers("/api/**").authenticated();
+                // 프로필 관련 (로그인한 모든 사용자)
+                auth.requestMatchers("/api/member/profile").authenticated();
+                auth.requestMatchers("/api/member/verify-password").authenticated();
+                auth.requestMatchers(HttpMethod.PUT, "/api/member/profile").authenticated();
                 
-                // 기타 모든 요청은 인증 필요
+                // 커플 상태 확인 (로그인한 모든 사용자)
+                auth.requestMatchers("/api/couple/status").authenticated();
+                
+                // 커플 등록 (싱글 사용자만 - 비즈니스 로직에서 추가 검증)
+                auth.requestMatchers("/api/couple/register").hasAuthority("COUPLE_SINGLE");
+                
+                // === 커플 관계 필요 ===
+                
+                // 커플 정보 조회 (커플인 사용자만)
+                auth.requestMatchers("/api/couple/info").hasAuthority("COUPLE_COUPLED");
+                
+                // 커플 해제 (커플인 사용자만)
+                auth.requestMatchers(HttpMethod.DELETE, "/api/couple/break").hasAuthority("COUPLE_COUPLED");
+                
+                // 향후 채팅 관련 API (파이썬에서 구현하더라도 보안 정책 정의)
+                auth.requestMatchers("/api/chat/**").hasAuthority("COUPLE_COUPLED");
+                
+                // === 관리자 권한 ===
+                
+                // 일반 관리자 권한
+                auth.requestMatchers("/api/admin/members/**").hasAnyAuthority("ROLE_GENERAL_ADMIN", "ROLE_SUPER_ADMIN");
+                
+                // 최고 관리자 권한
+                auth.requestMatchers("/api/admin/system/**").hasAuthority("ROLE_SUPER_ADMIN");
+                auth.requestMatchers("/admin/**").hasAuthority("ROLE_SUPER_ADMIN");
+                
+                // === 기타 모든 요청은 인증 필요 ===
                 auth.anyRequest().authenticated();
             })
             

@@ -82,7 +82,7 @@ public class Members {
         this.memberNickName = memberNickName;
         this.memberEmail = memberEmail;
         this.memberPhone = memberPhone;
-        this.memberRole = MemberRole.valueOf("USER"); // DEFAULT를 USER로 변경
+        this.memberRole = MemberRole.MEMBER; // 기본값을 MEMBER로 설정
         this.memberStatus = com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.valueOf("ACTIVE"); // 항상 ACTIVE로 설정
         this.memberCreatedAt = LocalDateTime.now(); // 생성 시간 설정
     }
@@ -180,6 +180,32 @@ public class Members {
     }
 
 
+
+    // ========== 커플 상태 관련 메서드 ==========
+    
+    /**
+     * 커플 관계에 있는지 확인
+     * @return true if in couple relationship, false if single
+     */
+    public boolean isInCouple() {
+        return this.coupleId != null && this.coupleId.getStatus() == com.ohgiraffers.tomatolab_imean.couple.model.common.CoupleStatus.ACTIVE;
+    }
+    
+    /**
+     * 싱글 상태인지 확인
+     * @return true if single, false if in couple
+     */
+    public boolean isSingle() {
+        return !isInCouple();
+    }
+    
+    /**
+     * 커플 상태를 문자열로 반환
+     * @return "COUPLED" or "SINGLE"
+     */
+    public String getCoupleStatusString() {
+        return isInCouple() ? "COUPLED" : "SINGLE";
+    }
 
     @Override
     public String toString() {
