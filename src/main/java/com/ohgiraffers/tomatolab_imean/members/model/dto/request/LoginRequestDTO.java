@@ -1,37 +1,34 @@
 package com.ohgiraffers.tomatolab_imean.members.model.dto.request;
 
 public class LoginRequestDTO {
-    private String membersEmail;
-    private String membersPass;
+    private String memberEmail;
+    private String memberPass;
     
     // 생성자
     public LoginRequestDTO() {
     }
     
-    public LoginRequestDTO(String membersEmail, String membersPass) {
-        this.membersEmail = membersEmail;
-        this.membersPass = membersPass;
+    public LoginRequestDTO(String memberEmail, String memberPass) {
+        this.memberEmail = memberEmail;
+        this.memberPass = memberPass;
     }
     
     // getter, setter
-    public String getMembersEmail() {
-        return membersEmail;
+    public String getMemberEmail() {
+        return memberEmail;
     }
     
-    public void setMembersEmail(String membersEmail) {
-        this.membersEmail = membersEmail;
+    public void setMemberEmail(String memberEmail) {
+        this.memberEmail = memberEmail;
     }
     
-    public String getMembersPass() {
-        return membersPass;
+    public String getMemberPass() {
+        return memberPass;
     }
     
-    public void setMembersPass(String membersPass) {
-        this.membersPass = membersPass;
+    public void setMemberPass(String memberPass) {
+        this.memberPass = memberPass;
     }
     
-    // 이전 버전 호환성 유지
-    public String getMembersCode() {
-        return null;
-    }
+
 }

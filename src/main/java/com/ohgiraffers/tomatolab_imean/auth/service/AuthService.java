@@ -1,9 +1,9 @@
 package com.ohgiraffers.tomatolab_imean.auth.service;
 
 import com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails;
-import com.ohgiraffers.tomatolab_imean.members.model.common.MembersStatus;
+import com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus;
 import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
-import com.ohgiraffers.tomatolab_imean.members.service.MembersService;
+import com.ohgiraffers.tomatolab_imean.members.service.MemberService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.security.authentication.LockedException;
@@ -15,22 +15,24 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService implements UserDetailsService {
 
-    private final MembersService membersService;
+    private final MemberService memberService;
 
     @Autowired
-    public AuthService(MembersService membersService) {
-        this.membersService = membersService;
+    public AuthService(MemberService memberService) {
+        this.memberService = memberService;
     }
 
     /**
      * Spring Security 인증을 위한 사용자 정보 로드 메서드
      * membersCode를 기준으로 사용자를 검색하고 UserDetails 객체로 반환
+     * usernamepasswordauthenticationtoken와 비교를 진행함
+     *
      */
     @Override
     public UserDetails loadUserByUsername(String memberCode) throws UsernameNotFoundException {
         try {
             // membersCode로 회원 정보 조회
-            Members member = membersService.findByCode(memberCode);
+            Members member = memberService.findByCode(memberCode);
             
             // 계정 상태 확인
             checkAccountStatus(member);
@@ -48,7 +50,7 @@ public class AuthService implements UserDetailsService {
     public UserDetails authenticateByEmail(String email, String password) {
         try {
             // 이메일로 회원 정보 조회
-            Members member = membersService.findByEmail(email);
+            Members member = memberService.findByEmail(email);
             
             // 계정 상태 확인
             checkAccountStatus(member);
@@ -64,13 +66,13 @@ public class AuthService implements UserDetailsService {
      * 계정 상태 검증 헬퍼 메서드
      */
     private void checkAccountStatus(Members member) {
-        MembersStatus status = member.getMembersStatus();
+        MemberStatus status = member.getMemberStatus();
         
         // 상태 체크 - ACTIVE가 아닌 경우 로그인 차단
-        if (!MembersStatus.ACTIVE.equals(status)) {
-            if (MembersStatus.DORMANT.equals(status)) {
+        if (!com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.ACTIVE.equals(status)) {
+            if (com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.DORMANT.equals(status)) {
                 throw new LockedException("휴면 계정입니다. 관리자에게 문의하세요.");
-            } else if (MembersStatus.BLOCKED.equals(status)) {
+            } else if (com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.BLOCKED.equals(status)) {
                 throw new LockedException("차단된 계정입니다. 관리자에게 문의하세요.");
             } else {
                 throw new LockedException("비활성화된 계정입니다. 관리자에게 문의하세요.");
@@ -83,11 +85,11 @@ public class AuthService implements UserDetailsService {
      */
     private AuthDetails createAuthDetails(Members member) {
         return new AuthDetails(
-            member.getMembersId(),
-            member.getMembersCode(),
-            member.getMembersPass(),
-            member.getMembersRole(),
-            member.getMembersStatus()
+            member.getMemberId(),
+            member.getMemberCode(),
+            member.getMemberPass(),
+            member.getMemberRole(),
+            member.getMemberStatus()
         );
     }
 }

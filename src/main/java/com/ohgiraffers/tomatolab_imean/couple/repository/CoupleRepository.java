@@ -12,5 +12,5 @@ import java.util.Optional;
 public interface CoupleRepository extends JpaRepository<Couple, Long> {
     Optional<Couple> findByMember1OrMember2(Members member1, Members member2);
     boolean existsByMember1OrMember2(Members member1, Members member2);
-    Optional<Couple> findByCoupleCode(String coupleCode);
+
 }

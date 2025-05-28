@@ -24,9 +24,6 @@ public class Couple {
     @JoinColumn(name = "member_id_2")
     private Members member2;
 
-    @Column(name = "couple_code", unique = true)
-    private String coupleCode;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -40,7 +37,6 @@ public class Couple {
     public Couple(Members member1, Members member2, String coupleCode, LocalDateTime createdAt, CoupleStatus status) {
         this.member1 = member1;
         this.member2 = member2;
-        this.coupleCode = coupleCode;
         this.createdAt = createdAt;
         this.status = status;
     }
@@ -69,13 +65,6 @@ public class Couple {
         this.member2 = member2;
     }
 
-    public String getCoupleCode() {
-        return coupleCode;
-    }
-
-    public void setCoupleCode(String coupleCode) {
-        this.coupleCode = coupleCode;
-    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -98,8 +87,7 @@ public class Couple {
         return "Couple{" +
                 "coupleId=" + coupleId +
                 ", member1=" + member1 +
-                ", member2=" + member2 +
-                ", coupleCode='" + coupleCode + '\'' +
+                ", member2=" + member2 + 
                 ", createdAt=" + createdAt +
                 ", status=" + status +
                 '}';
