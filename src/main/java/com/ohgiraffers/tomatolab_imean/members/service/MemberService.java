@@ -96,24 +96,27 @@ public class MemberService {
     }
 
     /**
-     * ID로 회원 조회
+     * ID로 회원 조회 (트랜잭션 적용)
      */
+    @Transactional
     public Members findById(Long id) {
         return memberRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
     }
 
     /**
-     * 회원 코드로 회원 검색
+     * 회원 코드로 회원 검색 (트랜잭션 적용)
      */
+    @Transactional
     public Members findByCode(String code) throws ChangeSetPersister.NotFoundException {
         return memberRepository.findByMemberCode(code)
                 .orElseThrow(() -> new ChangeSetPersister.NotFoundException());
     }
     
     /**
-     * 이메일로 회원 검색
+     * 이메일로 회원 검색 (트랜잭션 적용)
      */
+    @Transactional
     public Members findByEmail(String email) throws ChangeSetPersister.NotFoundException {
         return memberRepository.findByMemberEmail(email)
                 .orElseThrow(() -> new ChangeSetPersister.NotFoundException());

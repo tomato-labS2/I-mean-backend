@@ -146,6 +146,9 @@ public class SecurityConfig {
                 // 공개 API (인증 없이 접근 가능)
                 auth.requestMatchers("/api/public/**").permitAll();
                 
+                // 🔍 디버깅 API (개발 환경에서만 사용)
+                auth.requestMatchers("/api/debug/**").permitAll();
+                
                 // CORS preflight 요청 허용
                 auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                 
@@ -162,8 +165,8 @@ public class SecurityConfig {
                 // 커플 상태 확인 (로그인한 모든 사용자)
                 auth.requestMatchers("/api/couple/status").authenticated();
                 
-                // 커플 등록 (싱글 사용자만 - 비즈니스 로직에서 추가 검증)
-                auth.requestMatchers("/api/couple/register").hasAuthority("COUPLE_SINGLE");
+                // 커플 등록 (모든 로그인 사용자 접근 가능 - 비즈니스 로직에서 처리)
+                auth.requestMatchers("/api/couple/register").authenticated();
                 
                 // === 커플 관계 필요 ===
                 

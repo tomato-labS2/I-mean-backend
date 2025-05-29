@@ -38,6 +38,43 @@ public class RefreshTokenService {
     }
     
     /**
+     * 🆕 기존 JWT Refresh Token을 DB에 저장
+     * @param memberCode 회원 코드
+     * @param jwtRefreshToken 이미 생성된 JWT Refresh Token
+     */
+    public void saveRefreshToken(String memberCode, String jwtRefreshToken) {
+        try {
+            logger.info("기존 RefreshToken 저장 시작 - 회원: {}", memberCode);
+            
+            // RefreshToken 엔티티 생성
+            String tokenId = UUID.randomUUID().toString();
+            long expirationMs = jwtTokenProvider.getJwtProperties().getRefreshTokenExpiration();
+            
+            RefreshToken refreshToken = new RefreshToken(
+                tokenId, 
+                memberCode, 
+                jwtRefreshToken, 
+                expirationMs
+            );
+            
+            // DB에 저장
+            RefreshToken savedToken = refreshTokenRepository.save(refreshToken);
+            logger.info("RefreshToken DB 저장 완료 - 회원: {}, 저장된 토큰ID: {}", memberCode, savedToken.getTokenId());
+            
+            // 해당 사용자의 오래된 토큰 정리 (비동기)
+            try {
+                cleanUpOldTokensForUser(memberCode);
+            } catch (Exception cleanupEx) {
+                logger.warn("토큰 정리 중 오류 (무시) - 회원: {}, 오류: {}", memberCode, cleanupEx.getMessage());
+            }
+            
+        } catch (Exception e) {
+            logger.error("Refresh Token 저장 중 오류 발생 - 회원: {}, 오류: {}", memberCode, e.getMessage(), e);
+            throw new RuntimeException("Refresh Token 저장에 실패했습니다.", e);
+        }
+    }
+
+    /**
      * 새로운 Refresh Token 생성 및 저장
      * @param memberCode 회원 코드
      * @return 생성된 JWT Refresh Token 문자열
@@ -117,6 +154,43 @@ public class RefreshTokenService {
     }
     
     /**
+     * 🆕 Access Token과 Refresh Token 모두 갱신 (토큰 로테이션, member_id + coupleId 포함)
+     * @param refreshTokenValue 기존 Refresh Token 값
+     * @param memberId 회원 ID
+     * @param memberCode 회원 코드
+     * @param coupleStatus 커플 상태
+     * @param memberRole 회원 역할
+     * @param coupleId 커플 ID (null 가능)
+     * @return 새로운 토큰 쌍 [accessToken, refreshToken]
+     */
+    public String[] rotateTokens(String refreshTokenValue, Long memberId, String memberCode, 
+                                String coupleStatus, String memberRole, Long coupleId) {
+        try {
+            // 1. 기존 Refresh Token 검증 및 조회
+            RefreshToken oldRefreshToken = validateAndGetRefreshToken(refreshTokenValue);
+            
+            // 2. 기존 Refresh Token 폐기
+            oldRefreshToken.revoke();
+            refreshTokenRepository.save(oldRefreshToken);
+            
+            // 3. 새로운 토큰 쌍 생성 (member_id + coupleId 포함)
+            String newAccessToken = jwtTokenProvider.createAccessToken(memberId, memberCode, coupleStatus, memberRole, coupleId);
+            String newRefreshToken = jwtTokenProvider.createRefreshToken(memberId, memberCode);
+            
+            // 4. 새 Refresh Token DB에 저장
+            saveRefreshToken(memberCode, newRefreshToken);
+            
+            logger.info("토큰 로테이션 완료 (member_id + coupleId 포함) - 회원: {}, ID: {}, 커플ID: {}", memberCode, memberId, coupleId);
+            
+            return new String[]{newAccessToken, newRefreshToken};
+            
+        } catch (Exception e) {
+            logger.error("토큰 로테이션 중 오류 발생 (member_id + coupleId 포함): {}", e.getMessage());
+            throw new RuntimeException("토큰 로테이션에 실패했습니다.", e);
+        }
+    }
+
+    /**
      * Access Token과 Refresh Token 모두 갱신 (토큰 로테이션)
      * @param refreshTokenValue 기존 Refresh Token 값
      * @return 새로운 토큰 쌍 [accessToken, refreshToken]
@@ -188,6 +262,50 @@ public class RefreshTokenService {
         return refreshTokenRepository.findValidTokensByMemberCode(memberCode, LocalDateTime.now());
     }
     
+    /**
+     * 🆕 새로운 Refresh Token 생성 및 저장 (member_id 포함)
+     * @param memberId 회원 ID
+     * @param memberCode 회원 코드
+     * @return 생성된 JWT Refresh Token 문자열
+     */
+    public String createAndSaveRefreshToken(Long memberId, String memberCode) {
+        try {
+            logger.info("RefreshToken 생성 시작 (member_id 포함) - 회원: {}, ID: {}", memberCode, memberId);
+            
+            // 1. JWT Refresh Token 생성 (member_id 포함)
+            String jwtRefreshToken = jwtTokenProvider.createRefreshToken(memberId, memberCode);
+            logger.info("JWT RefreshToken 생성 완료 (member_id 포함) - 회원: {}", memberCode);
+            
+            // 2. RefreshToken 엔티티 생성
+            String tokenId = UUID.randomUUID().toString();
+            long expirationMs = jwtTokenProvider.getJwtProperties().getRefreshTokenExpiration();
+            
+            RefreshToken refreshToken = new RefreshToken(
+                tokenId, 
+                memberCode, 
+                jwtRefreshToken, 
+                expirationMs
+            );
+            
+            // 3. DB에 저장
+            RefreshToken savedToken = refreshTokenRepository.save(refreshToken);
+            logger.info("RefreshToken DB 저장 완료 (member_id 포함) - 회원: {}, 저장된 토큰ID: {}", memberCode, savedToken.getTokenId());
+            
+            // 4. 해당 사용자의 오래된 토큰 정리 (비동기)
+            try {
+                cleanUpOldTokensForUser(memberCode);
+            } catch (Exception cleanupEx) {
+                logger.warn("토큰 정리 중 오류 (무시) - 회원: {}, 오류: {}", memberCode, cleanupEx.getMessage());
+            }
+            
+            return jwtRefreshToken;
+            
+        } catch (Exception e) {
+            logger.error("Refresh Token 생성 중 오류 발생 (member_id 포함) - 회원: {}, 오류: {}", memberCode, e.getMessage(), e);
+            throw new RuntimeException("Refresh Token 생성에 실패했습니다.", e);
+        }
+    }
+
     /**
      * Refresh Token 유효성 검증 및 조회
      * @param refreshTokenValue Refresh Token 값

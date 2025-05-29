@@ -1,4 +1,21 @@
 spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    auth-code-expiration-millis: 1800000  # 30 * 60 * 1000 == 30분
+
   application:
     name: I-mean
   profiles:
@@ -25,6 +42,8 @@ python:
 logging:
   level:
     com.ohgiraffers.tomatolab_imean.gateway: DEBUG
+    com.ohgiraffers.tomatolab_imean.auth: DEBUG  # JWT 인증 관련 디버그 로그 활성화
     org.springframework.web.reactive.function.client: DEBUG
+    org.springframework.security: DEBUG  # Spring Security 디버그 로그
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
