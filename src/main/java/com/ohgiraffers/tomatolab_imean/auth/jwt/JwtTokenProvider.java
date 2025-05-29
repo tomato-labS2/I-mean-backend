@@ -50,21 +50,29 @@ public class JwtTokenProvider {
     }
     
     /**
-     * Access Token 생성 (member_id 포함 개선 버전)
+     * Access Token 생성 (member_id + coupleId 포함 개선 버전)
      */
-    public String createAccessToken(Long memberId, String memberCode, String coupleStatus, String memberRole) {
+    public String createAccessToken(Long memberId, String memberCode, String coupleStatus, String memberRole, Long coupleId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getAccessTokenExpiration());
         
         return Jwts.builder()
                 .setSubject(memberCode)                 // 기존 호환성 유지
-                .claim("memberId", memberId)            // 🆕 회원 ID 추가
+                .claim("memberId", memberId)            // 🆕 회원 ID
                 .claim("coupleStatus", coupleStatus)    // SINGLE or COUPLED
                 .claim("memberRole", memberRole)        // MEMBER, GENERAL_ADMIN, SUPER_ADMIN
+                .claim("coupleId", coupleId)            // 🆕 커플 ID (null 가능)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(getSigningKey())
                 .compact();
+    }
+    
+    /**
+     * Access Token 생성 (기존 4개 매개변수 버전 - 호환성 유지)
+     */
+    public String createAccessToken(Long memberId, String memberCode, String coupleStatus, String memberRole) {
+        return createAccessToken(memberId, memberCode, coupleStatus, memberRole, null);
     }
     
     /**
@@ -155,6 +163,41 @@ public class JwtTokenProvider {
     }
     
     /**
+     * 🆕 토큰에서 커플 ID 추출
+     */
+    public Long getCoupleIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(getSigningKey())
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            Object coupleIdClaim = claims.get("coupleId");
+            if (coupleIdClaim == null) {
+                logger.debug("토큰에 coupleId 클레임이 없습니다 (구버전 토큰이거나 싱글 사용자)");
+                return null;
+            }
+            
+            // Integer로 저장된 경우를 Long으로 변환
+            if (coupleIdClaim instanceof Integer) {
+                return ((Integer) coupleIdClaim).longValue();
+            } else if (coupleIdClaim instanceof Long) {
+                return (Long) coupleIdClaim;
+            } else {
+                logger.warn("coupleId 클레임 타입이 예상과 다릅니다: {}", coupleIdClaim.getClass());
+                return Long.valueOf(coupleIdClaim.toString());
+            }
+            
+        } catch (ExpiredJwtException e) {
+            logger.warn("만료된 토큰에서 커플 ID 추출 시도: {}", e.getMessage());
+            throw new TokenExpiredException("Access Token", true);
+        } catch (Exception e) {
+            logger.debug("토큰에서 커플 ID 추출 실패 (구버전 토큰일 수 있음): {}", e.getMessage());
+            return null; // 기본값으로 null 반환
+        }
+    }
+    
+    /**
      * 토큰에서 회원 코드 추출 (기존 유지)
      */
     public String getMemberCodeFromToken(String token) {
@@ -228,8 +271,9 @@ public class JwtTokenProvider {
             Long memberId = getMemberIdFromToken(token);
             String coupleStatus = claims.get("coupleStatus", String.class);
             String memberRole = claims.get("memberRole", String.class);
+            Long coupleId = getCoupleIdFromToken(token);
             
-            return new TokenUserInfo(memberId, memberCode, coupleStatus, memberRole);
+            return new TokenUserInfo(memberId, memberCode, coupleStatus, memberRole, coupleId);
         } catch (Exception e) {
             logger.error("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
             throw new InvalidTokenException("토큰에서 사용자 정보를 추출할 수 없습니다.", e);
@@ -237,29 +281,34 @@ public class JwtTokenProvider {
     }
     
     /**
-     * 토큰 유효성 검증 (기존 유지)
+     * 토큰 유효성 검증 (디버깅 로그 추가)
      */
     public boolean validateToken(String token) {
         try {
+            logger.debug("🔍 토큰 유효성 검증 시작...");
             Jwts.parser()
                     .setSigningKey(getSigningKey())
                     .parseClaimsJws(token);
+            logger.debug("✅ 토큰 유효성 검증 성공");
             return true;
         } catch (ExpiredJwtException e) {
-            logger.warn("만료된 토큰입니다: {}", e.getMessage());
+            logger.warn("❌ 만료된 토큰입니다: {}", e.getMessage());
             throw new TokenExpiredException("Access Token", true);
         } catch (UnsupportedJwtException e) {
-            logger.warn("지원하지 않는 토큰입니다: {}", e.getMessage());
+            logger.warn("❌ 지원하지 않는 토큰입니다: {}", e.getMessage());
             throw InvalidTokenException.unsupportedToken();
         } catch (MalformedJwtException e) {
-            logger.warn("잘못된 형식의 토큰입니다: {}", e.getMessage());
+            logger.warn("❌ 잘못된 형식의 토큰입니다: {}", e.getMessage());
             throw InvalidTokenException.malformedToken();
         } catch (SignatureException e) {
-            logger.warn("잘못된 서명의 토큰입니다: {}", e.getMessage());
+            logger.warn("❌ 잘못된 서명의 토큰입니다: {}", e.getMessage());
             throw InvalidTokenException.invalidSignature();
         } catch (IllegalArgumentException e) {
-            logger.warn("빈 토큰입니다: {}", e.getMessage());
+            logger.warn("❌ 빈 토큰입니다: {}", e.getMessage());
             throw InvalidTokenException.emptyToken();
+        } catch (Exception e) {
+            logger.error("❌ 토큰 검증 중 예상치 못한 오류: {}", e.getMessage(), e);
+            throw new InvalidTokenException("토큰 검증 실패", e);
         }
     }
     
@@ -308,12 +357,14 @@ public class JwtTokenProvider {
         private final String memberCode;
         private final String coupleStatus;
         private final String memberRole;
+        private final Long coupleId;        // 🆕 커플 ID 추가
         
-        public TokenUserInfo(Long memberId, String memberCode, String coupleStatus, String memberRole) {
+        public TokenUserInfo(Long memberId, String memberCode, String coupleStatus, String memberRole, Long coupleId) {
             this.memberId = memberId;
             this.memberCode = memberCode;
             this.coupleStatus = coupleStatus;
             this.memberRole = memberRole;
+            this.coupleId = coupleId;
         }
         
         // Getters
@@ -321,11 +372,12 @@ public class JwtTokenProvider {
         public String getMemberCode() { return memberCode; }
         public String getCoupleStatus() { return coupleStatus; }
         public String getMemberRole() { return memberRole; }
+        public Long getCoupleId() { return coupleId; }  // 🆕 커플 ID getter
         
         @Override
         public String toString() {
-            return String.format("TokenUserInfo{memberId=%d, memberCode='%s', coupleStatus='%s', memberRole='%s'}", 
-                    memberId, memberCode, coupleStatus, memberRole);
+            return String.format("TokenUserInfo{memberId=%d, memberCode='%s', coupleStatus='%s', memberRole='%s', coupleId=%s}", 
+                    memberId, memberCode, coupleStatus, memberRole, coupleId);
         }
     }
 }

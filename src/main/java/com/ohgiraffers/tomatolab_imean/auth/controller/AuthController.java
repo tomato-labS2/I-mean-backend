@@ -7,6 +7,9 @@ import com.ohgiraffers.tomatolab_imean.auth.model.dto.request.RefreshTokenReques
 import com.ohgiraffers.tomatolab_imean.auth.model.dto.response.TokenResponseDTO;
 import com.ohgiraffers.tomatolab_imean.auth.service.RefreshTokenService;
 import com.ohgiraffers.tomatolab_imean.common.dto.response.ApiResponseDTO;
+import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
+import com.ohgiraffers.tomatolab_imean.members.service.MemberService;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -25,10 +28,10 @@ public class AuthController {
     
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
-    private final com.ohgiraffers.tomatolab_imean.members.service.MemberService memberService;
+    private final MemberService memberService;
     
     public AuthController(JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService,
-                         com.ohgiraffers.tomatolab_imean.members.service.MemberService memberService) {
+                         MemberService memberService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;
         this.memberService = memberService;
@@ -67,7 +70,7 @@ public class AuthController {
             
             // 회원 정보 조회
             try {
-                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member;
+                Members member;
                 
                 // member_id가 있으면 ID로 조회, 없으면 Code로 조회 (하위 호환성)
                 if (memberId != null) {
@@ -76,12 +79,13 @@ public class AuthController {
                     member = memberService.findByCode(memberCode);
                 }
                 
-                // 🆕 새로운 Access Token 생성 (member_id 포함)
+                // 🆕 새로운 Access Token 생성 (member_id + coupleId 포함)
                 String newAccessToken = jwtTokenProvider.createAccessToken(
-                    member.getMemberId(),        // 🆕 member_id 포함
+                    member.getMemberId(),        // 회원 ID
                     member.getMemberCode(),
                     member.getCoupleStatusString(),
-                    member.getMemberRole().name()
+                    member.getMemberRole().name(),
+                    member.getCoupleIdAsLong()   // 🆕 커플 ID 포함
                 );
                 
                 long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
@@ -90,7 +94,7 @@ public class AuthController {
                 
                 return ResponseEntity.ok(ApiResponseDTO.success("토큰 갱신 성공", tokenResponse));
                 
-            } catch (org.springframework.data.crossstore.ChangeSetPersister.NotFoundException e) {
+            } catch (ChangeSetPersister.NotFoundException e) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponseDTO.error("사용자 정보를 찾을 수 없습니다"));
             }
@@ -122,7 +126,7 @@ public class AuthController {
             String memberCode = jwtTokenProvider.getMemberCodeFromToken(refreshToken);
             
             try {
-                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member;
+                Members member;
                 
                 // member_id가 있으면 ID로 조회, 없으면 Code로 조회
                 if (memberId != null) {
@@ -131,24 +135,18 @@ public class AuthController {
                     member = memberService.findByCode(memberCode);
                 }
                 
-                // 기존 Refresh Token 폐기
-                refreshTokenService.revokeRefreshToken(refreshToken);
-                
-                // 🆕 새로운 토큰들 생성 (member_id 포함)
-                String newAccessToken = jwtTokenProvider.createAccessToken(
+                // 🆕 새로운 토큰들 생성 (member_id + coupleId 포함) - 새 메서드 사용
+                String[] newTokens = refreshTokenService.rotateTokens(
+                    refreshToken,
                     member.getMemberId(),
                     member.getMemberCode(),
                     member.getCoupleStatusString(),
-                    member.getMemberRole().name()
+                    member.getMemberRole().name(),
+                    member.getCoupleIdAsLong()   // 🆕 커플 ID 포함
                 );
                 
-                String newRefreshToken = jwtTokenProvider.createRefreshToken(
-                    member.getMemberId(),
-                    member.getMemberCode()
-                );
-                
-                // 새 Refresh Token 저장
-                refreshTokenService.saveRefreshToken(member.getMemberCode(), newRefreshToken);
+                String newAccessToken = newTokens[0];
+                String newRefreshToken = newTokens[1];
                 
                 long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
                 
@@ -156,7 +154,7 @@ public class AuthController {
                 
                 return ResponseEntity.ok(ApiResponseDTO.success("토큰 로테이션 성공", tokenResponse));
                 
-            } catch (org.springframework.data.crossstore.ChangeSetPersister.NotFoundException e) {
+            } catch (ChangeSetPersister.NotFoundException e) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponseDTO.error("사용자 정보를 찾을 수 없습니다"));
             }
@@ -178,12 +176,13 @@ public class AuthController {
         if (authentication != null && authentication.isAuthenticated()) {
             AuthDetails authDetails = (AuthDetails) authentication.getPrincipal();
             
-            // 🆕 JWT에서 member_id 정보도 포함하여 응답
+            // 🆕 JWT에서 member_id + coupleId 정보도 포함하여 응답
             Map<String, Object> userInfo = new HashMap<>();
             userInfo.put("memberId", authDetails.getMemberId());
             userInfo.put("memberCode", authDetails.getMemberCode());
             userInfo.put("memberRole", authDetails.getMemberRole().name());
             userInfo.put("coupleStatus", authDetails.getCoupleStatus());
+            userInfo.put("coupleId", authDetails.getCoupleId());    // 🆕 커플 ID 포함
             userInfo.put("isInCouple", authDetails.isInCouple());
             userInfo.put("isAdmin", authDetails.isAdmin());
             userInfo.put("isSuperAdmin", authDetails.isSuperAdmin());

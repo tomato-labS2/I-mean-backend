@@ -89,22 +89,20 @@ public class MemberController {
                 new UsernamePasswordAuthenticationToken(member.getMemberCode(), request.getMemberPass())
             );
             
-            // 🆕 JWT 토큰 생성 (member_id 포함)
+            // 🆕 JWT 토큰 생성 (member_id + coupleId 포함)
             String accessToken = jwtTokenProvider.createAccessToken(
-                member.getMemberId(),           // 🆕 member_id 추가
+                member.getMemberId(),           // 회원 ID
                 member.getMemberCode(), 
                 member.getCoupleStatusString(), 
-                member.getMemberRole().name()
+                member.getMemberRole().name(),
+                member.getCoupleIdAsLong()      // 🆕 커플 ID (null 가능)
             );
             
             // 🆕 Refresh Token 생성 (member_id 포함)
-            String refreshToken = jwtTokenProvider.createRefreshToken(
+            String refreshToken = refreshTokenService.createAndSaveRefreshToken(
                 member.getMemberId(),           // 🆕 member_id 추가
                 member.getMemberCode()
             );
-            
-            // Refresh Token DB에 저장
-            refreshTokenService.saveRefreshToken(member.getMemberCode(), refreshToken);
 
 //            refreshTokenRepository.save(refreshToken);
             
@@ -167,22 +165,20 @@ public class MemberController {
                 request.getMemberPhone()
             );
             
-            // 🆕 5. JWT 토큰 생성 (member_id 포함)
+            // 🆕 5. JWT 토큰 생성 (member_id + coupleId 포함)
             String accessToken = jwtTokenProvider.createAccessToken(
-                newMember.getMemberId(),        // 🆕 member_id 추가
+                newMember.getMemberId(),        // 회원 ID
                 newMember.getMemberCode(), 
                 newMember.getCoupleStatusString(), 
-                newMember.getMemberRole().name()
+                newMember.getMemberRole().name(),
+                newMember.getCoupleIdAsLong()   // 🆕 커플 ID (회원가입 시는 null)
             );
             
             // 🆕 Refresh Token 생성 (member_id 포함)
-            String refreshToken = jwtTokenProvider.createRefreshToken(
+            String refreshToken = refreshTokenService.createAndSaveRefreshToken(
                 newMember.getMemberId(),        // 🆕 member_id 추가
                 newMember.getMemberCode()
             );
-            
-            // Refresh Token DB에 저장
-            refreshTokenService.saveRefreshToken(memberCode, refreshToken);
             
             // 6. 토큰 만료 시간 계산
             long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;

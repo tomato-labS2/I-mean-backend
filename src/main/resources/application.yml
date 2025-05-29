@@ -42,6 +42,8 @@ python:
 logging:
   level:
     com.ohgiraffers.tomatolab_imean.gateway: DEBUG
+    com.ohgiraffers.tomatolab_imean.auth: DEBUG  # JWT 인증 관련 디버그 로그 활성화
     org.springframework.web.reactive.function.client: DEBUG
+    org.springframework.security: DEBUG  # Spring Security 디버그 로그
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -21,18 +21,28 @@ public class AuthDetails implements UserDetails {
     private MemberRole memberRole;
     private MemberStatus memberStatus;
     private String coupleStatus;     // SINGLE or COUPLED
+    private Long coupleId;           // 🆕 커플 ID 추가 (null 가능)
 
     /**
-     * 🆕 생성자 (member_id 포함 버전)
+     * 🆕 생성자 (member_id + coupleId 포함 버전)
      */
     public AuthDetails(Long memberId, String memberCode, String memberPass,
-                       MemberRole memberRole, MemberStatus memberStatus, String coupleStatus) {
+                       MemberRole memberRole, MemberStatus memberStatus, String coupleStatus, Long coupleId) {
         this.memberId = memberId;
         this.memberCode = memberCode;
         this.memberPass = memberPass;
         this.memberRole = memberRole;
         this.memberStatus = memberStatus;
         this.coupleStatus = coupleStatus;
+        this.coupleId = coupleId;
+    }
+
+    /**
+     * 생성자 (coupleId 없는 버전 - 호환성 유지)
+     */
+    public AuthDetails(Long memberId, String memberCode, String memberPass,
+                       MemberRole memberRole, MemberStatus memberStatus, String coupleStatus) {
+        this(memberId, memberCode, memberPass, memberRole, memberStatus, coupleStatus, null);
     }
 
     /**
@@ -59,7 +69,8 @@ public class AuthDetails implements UserDetails {
             member.getMemberPass(),
             member.getMemberRole(),
             member.getMemberStatus(),
-            member.getCoupleStatusString()
+            member.getCoupleStatusString(),
+            member.getCoupleIdAsLong()      // 🆕 커플 ID 포함
         );
     }
 
@@ -152,6 +163,13 @@ public class AuthDetails implements UserDetails {
     }
     
     /**
+     * 🆕 커플 ID 반환
+     */
+    public Long getCoupleId() {
+        return coupleId;
+    }
+    
+    /**
      * 커플 관계에 있는지 확인
      */
     public boolean isInCouple() {
@@ -181,7 +199,7 @@ public class AuthDetails implements UserDetails {
     
     @Override
     public String toString() {
-        return String.format("AuthDetails{memberId=%d, memberCode='%s', memberRole=%s, coupleStatus='%s'}", 
-                memberId, memberCode, memberRole, coupleStatus);
+        return String.format("AuthDetails{memberId=%d, memberCode='%s', memberRole=%s, coupleStatus='%s', coupleId=%s}", 
+                memberId, memberCode, memberRole, coupleStatus, coupleId);
     }
 }

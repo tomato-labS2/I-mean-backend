@@ -12,10 +12,13 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
+
 /**
  * 🆕 인증 서비스 (member_id 지원 개선 버전)
  */
 @Service
+@Transactional(readOnly = true)  // 🔧 모든 조회 메서드에 트랜잭션 적용
 public class AuthService implements UserDetailsService {
 
     private final MemberService memberService;
@@ -40,15 +43,19 @@ public class AuthService implements UserDetailsService {
     }
     
     /**
-     * 🆕 member_id로 사용자 정보 로드 메서드
+     * 🆕 member_id로 사용자 정보 로드 메서드 (디버깅 로그 추가)
      */
     public UserDetails loadUserByMemberId(Long memberId) throws UsernameNotFoundException {
+
         try {
             Members member = memberService.findById(memberId);
             checkAccountStatus(member);
-            return createAuthDetailsFromMember(member);
+            AuthDetails authDetails = createAuthDetailsFromMember(member);
+            return authDetails;
         } catch (IllegalArgumentException e) {
             throw new UsernameNotFoundException("회원 정보가 존재하지 않습니다: ID " + memberId);
+        } catch (Exception e) {
+            throw new UsernameNotFoundException("사용자 조회 실패: ID " + memberId);
         }
     }
     
@@ -66,17 +73,24 @@ public class AuthService implements UserDetailsService {
     }
     
     /**
-     * 🆕 member_id나 memberCode로 사용자 정보 조회 (통합 메서드)
+     * 🆕 member_id나 memberCode로 사용자 정보 조회 (통합 메서드) - Fallback 강화
      */
     public UserDetails loadUserByIdOrCode(Long memberId, String memberCode) throws UsernameNotFoundException {
-        // member_id 우선 시도
+
+        // 1차: member_id로 시도
         if (memberId != null) {
             try {
-                return loadUserByMemberId(memberId);
+                UserDetails userDetails = loadUserByMemberId(memberId);
+                return userDetails;
             } catch (UsernameNotFoundException e) {
                 // member_id로 찾지 못한 경우 memberCode로 시도 (fallback)
                 if (memberCode != null) {
-                    return loadUserByUsername(memberCode);
+                    try {
+                        UserDetails userDetails = loadUserByUsername(memberCode);
+                        return userDetails;
+                    } catch (UsernameNotFoundException ex) {
+                        throw new UsernameNotFoundException("회원 정보를 찾을 수 없습니다 - ID: " + memberId + ", Code: " + memberCode);
+                    }
                 }
                 throw e;
             }
@@ -100,8 +114,8 @@ public class AuthService implements UserDetailsService {
                     throw new LockedException("휴면 계정입니다. 관리자에게 문의하세요.");
                 case BLOCKED:
                     throw new LockedException("차단된 계정입니다. 관리자에게 문의하세요.");
-                case SUSPENDED:
-                    throw new LockedException("정지된 계정입니다. 관리자에게 문의하세요.");
+                case DELETED:
+                    throw new LockedException("삭제된 계정입니다. 관리자에게 문의하세요.");
                 default:
                     throw new LockedException("비활성화된 계정입니다. 관리자에게 문의하세요.");
             }
@@ -109,16 +123,17 @@ public class AuthService implements UserDetailsService {
     }
     
     /**
-     * 🆕 Members 엔티티에서 AuthDetails 객체 생성 헬퍼 메서드 (개선)
+     * 🆕 Members 엔티티에서 AuthDetails 객체 생성 헬퍼 메서드 (coupleId 포함)
      */
     private AuthDetails createAuthDetailsFromMember(Members member) {
         return new AuthDetails(
-            member.getMemberId(),           // 🆕 member_id 포함
+            member.getMemberId(),           // 회원 ID
             member.getMemberCode(),
             member.getMemberPass(),
             member.getMemberRole(),
             member.getMemberStatus(),
-            member.getCoupleStatusString()  // 🆕 실시간 커플 상태 포함
+            member.getCoupleStatusString(), // 실시간 커플 상태
+            member.getCoupleIdAsLong()      // 🆕 커플 ID (null 가능)
         );
     }
     
