@@ -11,20 +11,34 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Spring Security에서 사용자 인증 정보를 담는 클래스
+ * Spring Security에서 사용자 인증 정보를 담는 클래스 (member_id 포함 개선 버전)
  */
 public class AuthDetails implements UserDetails {
 
-    private Long memberId;
+    private Long memberId;           // 🆕 회원 ID 추가
     private String memberCode;
     private String memberPass;
     private MemberRole memberRole;
     private MemberStatus memberStatus;
-    private String coupleStatus; // 추가: SINGLE or COUPLED
+    private String coupleStatus;     // SINGLE or COUPLED
 
     /**
-     * 생성자 (기존 버전 - 하위 호환)
+     * 🆕 생성자 (member_id 포함 버전)
      */
+    public AuthDetails(Long memberId, String memberCode, String memberPass,
+                       MemberRole memberRole, MemberStatus memberStatus, String coupleStatus) {
+        this.memberId = memberId;
+        this.memberCode = memberCode;
+        this.memberPass = memberPass;
+        this.memberRole = memberRole;
+        this.memberStatus = memberStatus;
+        this.coupleStatus = coupleStatus;
+    }
+
+    /**
+     * 생성자 (기존 버전 - 하위 호환성, member_id 없음)
+     */
+    @Deprecated
     public AuthDetails(Long memberId, String memberCode, String memberPass,
                        MemberRole memberRole, MemberStatus memberStatus) {
         this.memberId = memberId;
@@ -36,16 +50,17 @@ public class AuthDetails implements UserDetails {
     }
     
     /**
-     * 생성자 (커플 상태 포함 버전)
+     * 🆕 Members 엔티티로부터 AuthDetails 생성하는 팩토리 메서드
      */
-    public AuthDetails(Long memberId, String memberCode, String memberPass,
-                       MemberRole memberRole, MemberStatus memberStatus, String coupleStatus) {
-        this.memberId = memberId;
-        this.memberCode = memberCode;
-        this.memberPass = memberPass;
-        this.memberRole = memberRole;
-        this.memberStatus = memberStatus;
-        this.coupleStatus = coupleStatus;
+    public static AuthDetails from(com.ohgiraffers.tomatolab_imean.members.model.entity.Members member) {
+        return new AuthDetails(
+            member.getMemberId(),
+            member.getMemberCode(),
+            member.getMemberPass(),
+            member.getMemberRole(),
+            member.getMemberStatus(),
+            member.getCoupleStatusString()
+        );
     }
 
     /**
@@ -80,7 +95,7 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public String getUsername() {
-        return memberCode; // 로그인 식별자로 membersCode 사용
+        return memberCode; // 로그인 식별자로 memberCode 사용
     }
 
     /**
@@ -96,7 +111,7 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public boolean isAccountNonLocked() {
-        return com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.ACTIVE.equals(memberStatus);
+        return MemberStatus.ACTIVE.equals(memberStatus);
     }
 
     /**
@@ -112,7 +127,7 @@ public class AuthDetails implements UserDetails {
      */
     @Override
     public boolean isEnabled() {
-        return com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus.ACTIVE.equals(memberStatus);
+        return MemberStatus.ACTIVE.equals(memberStatus);
     }
 
     // Getter 메서드
@@ -148,5 +163,25 @@ public class AuthDetails implements UserDetails {
      */
     public boolean isSingle() {
         return "SINGLE".equals(coupleStatus);
+    }
+    
+    /**
+     * 🆕 관리자 권한 확인
+     */
+    public boolean isAdmin() {
+        return memberRole == MemberRole.GENERAL_ADMIN || memberRole == MemberRole.SUPER_ADMIN;
+    }
+    
+    /**
+     * 🆕 최고 관리자 권한 확인
+     */
+    public boolean isSuperAdmin() {
+        return memberRole == MemberRole.SUPER_ADMIN;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("AuthDetails{memberId=%d, memberCode='%s', memberRole=%s, coupleStatus='%s'}", 
+                memberId, memberCode, memberRole, coupleStatus);
     }
 }

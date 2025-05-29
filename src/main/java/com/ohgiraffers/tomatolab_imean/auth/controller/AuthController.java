@@ -12,8 +12,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * JWT 인증 관련 컨트롤러
+ * JWT 인증 관련 컨트롤러 (member_id 포함 개선 버전)
  * 토큰 갱신, 인증 상태 확인, 로그아웃 등
  */
 @RestController
@@ -46,30 +49,36 @@ public class AuthController {
     }
     
     /**
-     * Refresh Token으로 새로운 Access Token 발급
-     * Access Token 만료 시 사용
+     * 🆕 Refresh Token으로 새로운 Access Token 발급 (member_id 포함)
      */
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponseDTO<TokenResponseDTO>> refreshToken(@RequestBody RefreshTokenRequestDTO request) {
         try {
             String refreshToken = request.getRefreshToken();
             
-            // Refresh Token 유효성 검사
             if (refreshToken == null || refreshToken.trim().isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ApiResponseDTO.error("Refresh Token이 필요합니다."));
             }
             
-            // 토큰에서 회원 코드 추출
+            // 🔄 토큰에서 member_id와 memberCode 모두 추출
+            Long memberId = jwtTokenProvider.getMemberIdFromToken(refreshToken);
             String memberCode = jwtTokenProvider.getMemberCodeFromToken(refreshToken);
             
-            // 회원 정보 조회해서 현재 커플 상태 확인
+            // 회원 정보 조회
             try {
-                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member = 
-                    memberService.findByCode(memberCode);
+                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member;
                 
-                // 새로운 Access Token 생성 (현재 커플 상태 포함)
+                // member_id가 있으면 ID로 조회, 없으면 Code로 조회 (하위 호환성)
+                if (memberId != null) {
+                    member = memberService.findById(memberId);
+                } else {
+                    member = memberService.findByCode(memberCode);
+                }
+                
+                // 🆕 새로운 Access Token 생성 (member_id 포함)
                 String newAccessToken = jwtTokenProvider.createAccessToken(
+                    member.getMemberId(),        // 🆕 member_id 포함
                     member.getMemberCode(),
                     member.getCoupleStatusString(),
                     member.getMemberRole().name()
@@ -77,7 +86,6 @@ public class AuthController {
                 
                 long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
                 
-                // 응답 생성
                 TokenResponseDTO tokenResponse = new TokenResponseDTO(newAccessToken, expiresIn);
                 
                 return ResponseEntity.ok(ApiResponseDTO.success("토큰 갱신 성공", tokenResponse));
@@ -97,40 +105,53 @@ public class AuthController {
     }
     
     /**
-     * Access Token과 Refresh Token 모두 갱신 (토큰 로테이션)
-     * 보안성을 높이기 위해 Refresh Token도 함께 갱신
+     * 🆕 Access Token과 Refresh Token 모두 갱신 (토큰 로테이션)
      */
     @PostMapping("/refresh-rotate")
     public ResponseEntity<ApiResponseDTO<TokenResponseDTO>> refreshWithRotation(@RequestBody RefreshTokenRequestDTO request) {
         try {
             String refreshToken = request.getRefreshToken();
             
-            // Refresh Token 유효성 검사
             if (refreshToken == null || refreshToken.trim().isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ApiResponseDTO.error("Refresh Token이 필요합니다."));
             }
             
-            // 토큰에서 회원 코드 추출
+            // 🔄 토큰에서 사용자 정보 추출
+            Long memberId = jwtTokenProvider.getMemberIdFromToken(refreshToken);
             String memberCode = jwtTokenProvider.getMemberCodeFromToken(refreshToken);
             
-            // 회원 정보 조회해서 현재 커플 상태 확인
             try {
-                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member = 
-                    memberService.findByCode(memberCode);
+                com.ohgiraffers.tomatolab_imean.members.model.entity.Members member;
                 
-                // 토큰 로테이션 수행
-                String[] newTokens = refreshTokenService.rotateTokens(refreshToken);
+                // member_id가 있으면 ID로 조회, 없으면 Code로 조회
+                if (memberId != null) {
+                    member = memberService.findById(memberId);
+                } else {
+                    member = memberService.findByCode(memberCode);
+                }
+                
+                // 기존 Refresh Token 폐기
+                refreshTokenService.revokeRefreshToken(refreshToken);
+                
+                // 🆕 새로운 토큰들 생성 (member_id 포함)
                 String newAccessToken = jwtTokenProvider.createAccessToken(
+                    member.getMemberId(),
                     member.getMemberCode(),
                     member.getCoupleStatusString(),
                     member.getMemberRole().name()
                 );
-                String newRefreshToken = newTokens[1];
+                
+                String newRefreshToken = jwtTokenProvider.createRefreshToken(
+                    member.getMemberId(),
+                    member.getMemberCode()
+                );
+                
+                // 새 Refresh Token 저장
+                refreshTokenService.saveRefreshToken(member.getMemberCode(), newRefreshToken);
                 
                 long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
                 
-                // 응답 생성 (새로운 Refresh Token 포함)
                 TokenResponseDTO tokenResponse = new TokenResponseDTO(newAccessToken, newRefreshToken, expiresIn);
                 
                 return ResponseEntity.ok(ApiResponseDTO.success("토큰 로테이션 성공", tokenResponse));
@@ -146,6 +167,31 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponseDTO.error("토큰 로테이션 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * 🆕 현재 인증 상태 및 사용자 정보 확인
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponseDTO<Object>> getCurrentUser(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            AuthDetails authDetails = (AuthDetails) authentication.getPrincipal();
+            
+            // 🆕 JWT에서 member_id 정보도 포함하여 응답
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("memberId", authDetails.getMemberId());
+            userInfo.put("memberCode", authDetails.getMemberCode());
+            userInfo.put("memberRole", authDetails.getMemberRole().name());
+            userInfo.put("coupleStatus", authDetails.getCoupleStatus());
+            userInfo.put("isInCouple", authDetails.isInCouple());
+            userInfo.put("isAdmin", authDetails.isAdmin());
+            userInfo.put("isSuperAdmin", authDetails.isSuperAdmin());
+            
+            return ResponseEntity.ok(ApiResponseDTO.success("인증된 사용자 정보", userInfo));
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponseDTO.error("인증이 필요합니다."));
         }
     }
     

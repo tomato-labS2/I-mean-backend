@@ -89,13 +89,22 @@ public class MemberController {
                 new UsernamePasswordAuthenticationToken(member.getMemberCode(), request.getMemberPass())
             );
             
-            // JWT 토큰 생성 (커플 상태 포함)
+            // 🆕 JWT 토큰 생성 (member_id 포함)
             String accessToken = jwtTokenProvider.createAccessToken(
+                member.getMemberId(),           // 🆕 member_id 추가
                 member.getMemberCode(), 
                 member.getCoupleStatusString(), 
                 member.getMemberRole().name()
             );
-            String refreshToken = refreshTokenService.createAndSaveRefreshToken(member.getMemberCode());
+            
+            // 🆕 Refresh Token 생성 (member_id 포함)
+            String refreshToken = jwtTokenProvider.createRefreshToken(
+                member.getMemberId(),           // 🆕 member_id 추가
+                member.getMemberCode()
+            );
+            
+            // Refresh Token DB에 저장
+            refreshTokenService.saveRefreshToken(member.getMemberCode(), refreshToken);
 
 //            refreshTokenRepository.save(refreshToken);
             
@@ -158,13 +167,22 @@ public class MemberController {
                 request.getMemberPhone()
             );
             
-            // 5. JWT 토큰 생성 (회원가입 즉시 로그인 + 커플 상태 포함)
+            // 🆕 5. JWT 토큰 생성 (member_id 포함)
             String accessToken = jwtTokenProvider.createAccessToken(
-                memberCode, 
+                newMember.getMemberId(),        // 🆕 member_id 추가
+                newMember.getMemberCode(), 
                 newMember.getCoupleStatusString(), 
                 newMember.getMemberRole().name()
             );
-            String refreshToken = refreshTokenService.createAndSaveRefreshToken(memberCode);
+            
+            // 🆕 Refresh Token 생성 (member_id 포함)
+            String refreshToken = jwtTokenProvider.createRefreshToken(
+                newMember.getMemberId(),        // 🆕 member_id 추가
+                newMember.getMemberCode()
+            );
+            
+            // Refresh Token DB에 저장
+            refreshTokenService.saveRefreshToken(memberCode, refreshToken);
             
             // 6. 토큰 만료 시간 계산
             long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
@@ -314,8 +332,8 @@ public class MemberController {
     
     // ========== 헬퍼 메서드들 ==========
     
-    /*
-     * 현재 인증된 회원 정보 조회 헬퍼 메서드
+    /**
+     * 🆕 현재 인증된 회원 정보 조회 헬퍼 메서드 (member_id 지원)
      */
     private Members getCurrentMember(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -324,7 +342,13 @@ public class MemberController {
         
         try {
             AuthDetails authDetails = (AuthDetails) authentication.getPrincipal();
-            return memberService.findByCode(authDetails.getMemberCode());
+            
+            // 🆕 member_id가 있으면 ID로 조회, 없으면 Code로 조회 (하위 호환성)
+            if (authDetails.getMemberId() != null) {
+                return memberService.findById(authDetails.getMemberId());
+            } else {
+                return memberService.findByCode(authDetails.getMemberCode());
+            }
         } catch (ChangeSetPersister.NotFoundException e) {
             throw new UnauthorizedException("회원 정보를 찾을 수 없습니다");
         }
