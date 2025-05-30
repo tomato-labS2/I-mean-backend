@@ -58,8 +58,7 @@ public class AuthController {
     public ResponseEntity<ApiResponseDTO<TokenResponseDTO>> refreshToken(@RequestBody RefreshTokenRequestDTO request) {
         try {
             String refreshToken = request.getRefreshToken();
-            
-            // Refresh Token 유효성 검사
+
             if (refreshToken == null || refreshToken.trim().isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ApiResponseDTO.error("Refresh Token이 필요합니다."));

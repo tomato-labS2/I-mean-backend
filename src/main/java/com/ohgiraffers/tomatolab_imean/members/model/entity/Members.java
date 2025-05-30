@@ -39,7 +39,7 @@ public class Members {
     private MemberStatus memberStatus;
 
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)  // 🔧 LAZY → EAGER로 변경
     @JoinColumn(name = "couple_id", nullable = true)
     private Couple coupleId;
 
@@ -184,15 +184,21 @@ public class Members {
     // ========== 커플 상태 관련 메서드 ==========
     
     /**
-     * 커플 관계에 있는지 확인
+     * 커플 관계에 있는지 확인 (Lazy Loading 안전 처리)
      * @return true if in couple relationship, false if single
      */
     public boolean isInCouple() {
-        return this.coupleId != null && this.coupleId.getStatus() == com.ohgiraffers.tomatolab_imean.couple.model.common.CoupleStatus.ACTIVE;
+        try {
+            return this.coupleId != null && 
+                   this.coupleId.getStatus() == com.ohgiraffers.tomatolab_imean.couple.model.common.CoupleStatus.ACTIVE;
+        } catch (Exception e) {
+            // Lazy Loading 실패 시 false 반환 (싱글로 간주)
+            return false;
+        }
     }
     
     /**
-     * 싱글 상태인지 확인
+     * 싱글 상태인지 확인 (Lazy Loading 안전 처리)
      * @return true if single, false if in couple
      */
     public boolean isSingle() {
@@ -200,11 +206,24 @@ public class Members {
     }
     
     /**
-     * 커플 상태를 문자열로 반환
+     * 커플 상태를 문자열로 반환 (Lazy Loading 안전 처리)
      * @return "COUPLED" or "SINGLE"
      */
     public String getCoupleStatusString() {
         return isInCouple() ? "COUPLED" : "SINGLE";
+    }
+    
+    /**
+     * 🆕 커플 ID 반환 (Lazy Loading 안전 처리)
+     * @return coupleId if in couple, null if single
+     */
+    public Long getCoupleIdAsLong() {
+        try {
+            return (this.coupleId != null && isInCouple()) ? this.coupleId.getCoupleId() : null;
+        } catch (Exception e) {
+            // Lazy Loading 실패 시 null 반환
+            return null;
+        }
     }
 
     @Override
