@@ -7,6 +7,8 @@ import com.ohgiraffers.tomatolab_imean.auth.service.AuthService;
 import com.ohgiraffers.tomatolab_imean.auth.service.RefreshTokenService;
 import com.ohgiraffers.tomatolab_imean.common.dto.response.ApiResponseDTO;
 import com.ohgiraffers.tomatolab_imean.common.exception.UnauthorizedException;
+import com.ohgiraffers.tomatolab_imean.common.ratelimit.RateLimit;
+import com.ohgiraffers.tomatolab_imean.common.ratelimit.RateLimitKeyType;
 import com.ohgiraffers.tomatolab_imean.members.model.common.MemberStatus;
 import com.ohgiraffers.tomatolab_imean.members.model.dto.request.CompleteRegisterRequestDTO;
 import com.ohgiraffers.tomatolab_imean.members.model.dto.request.LoginRequestDTO;
@@ -65,7 +67,10 @@ public class MemberController {
     /**
      * JWT 기반 로그인 처리
      * 성공 시 Access Token과 Refresh Token 반환
+     * Rate Limit: 1분에 5회 (브루트포스 공격 방어)
      */
+    @RateLimit(requests = 5, window = "1m", keyType = RateLimitKeyType.IP, 
+               message = "로그인 시도가 너무 많습니다. 1분 후 다시 시도해주세요.")
     @PostMapping("/login")
     public ResponseEntity<ApiResponseDTO<LoginResponseDTO>> login(@RequestBody LoginRequestDTO request) {
         try {
@@ -134,7 +139,10 @@ public class MemberController {
     /**
      * 원스텝 회원가입 (JWT 방식)
      * 모든 정보를 한 번에 받아서 처리
+     * Rate Limit: 10분에 3회 (스팸 가입 방지)
      */
+    @RateLimit(requests = 3, window = "10m", keyType = RateLimitKeyType.IP,
+               message = "회원가입 시도가 너무 많습니다. 10분 후 다시 시도해주세요.")
     @PostMapping("/register")
     public ResponseEntity<ApiResponseDTO<LoginResponseDTO>> register(@RequestBody CompleteRegisterRequestDTO request) {
         try {
@@ -203,7 +211,10 @@ public class MemberController {
     /**
      * 이메일 중복 체크 API
      * 회원가입 전 이메일 유효성 검사용
+     * Rate Limit: 1분에 10회 (적당한 제한)
      */
+    @RateLimit(requests = 10, window = "1m", keyType = RateLimitKeyType.IP,
+               message = "이메일 중복 체크 요청이 너무 많습니다. 1분 후 다시 시도해주세요.")
     @PostMapping("/check-email")
     public ResponseEntity<ApiResponseDTO<Boolean>> checkEmailAvailability(@RequestBody String email) {
         try {
