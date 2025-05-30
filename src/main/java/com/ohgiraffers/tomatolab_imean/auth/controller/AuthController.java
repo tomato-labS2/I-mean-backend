@@ -7,6 +7,8 @@ import com.ohgiraffers.tomatolab_imean.auth.model.dto.request.RefreshTokenReques
 import com.ohgiraffers.tomatolab_imean.auth.model.dto.response.TokenResponseDTO;
 import com.ohgiraffers.tomatolab_imean.auth.service.RefreshTokenService;
 import com.ohgiraffers.tomatolab_imean.common.dto.response.ApiResponseDTO;
+import com.ohgiraffers.tomatolab_imean.common.ratelimit.RateLimit;
+import com.ohgiraffers.tomatolab_imean.common.ratelimit.RateLimitKeyType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -48,7 +50,10 @@ public class AuthController {
     /**
      * Refresh Token으로 새로운 Access Token 발급
      * Access Token 만료 시 사용
+     * Rate Limit: 1분에 10회 (적당한 제한)
      */
+    @RateLimit(requests = 10, window = "1m", keyType = RateLimitKeyType.IP,
+               message = "토큰 갱신 요청이 너무 많습니다. 1분 후 다시 시도해주세요.")
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponseDTO<TokenResponseDTO>> refreshToken(@RequestBody RefreshTokenRequestDTO request) {
         try {
@@ -99,7 +104,10 @@ public class AuthController {
     /**
      * Access Token과 Refresh Token 모두 갱신 (토큰 로테이션)
      * 보안성을 높이기 위해 Refresh Token도 함께 갱신
+     * Rate Limit: 1분에 5회 (보안상 더 엄격)
      */
+    @RateLimit(requests = 5, window = "1m", keyType = RateLimitKeyType.IP,
+               message = "토큰 로테이션 요청이 너무 많습니다. 1분 후 다시 시도해주세요.")
     @PostMapping("/refresh-rotate")
     public ResponseEntity<ApiResponseDTO<TokenResponseDTO>> refreshWithRotation(@RequestBody RefreshTokenRequestDTO request) {
         try {
