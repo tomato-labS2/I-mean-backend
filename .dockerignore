@@ -1,0 +1,26 @@
+# Git 관련 파일
+.git
+.gitignore
+
+# IDE 설정
+.idea
+.vscode
+*.iml
+
+# OS/에디터 임시파일
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 빌드 결과물
+.gradle/
+out/
+bin/
+
+# 환경 변수 등 민감정보
+.env
+
+# 테스트 리포트, 커버리지
+test/
+coverage/
