@@ -7,6 +7,9 @@ spring:
     properties:
       mail:
         smtp:
+          ssl:
+            trust: smtp.gmail.com
+            protocols: TLSv1.2
           auth: true
           starttls:
             enable: true
@@ -27,7 +30,7 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
 
-# Python 서비스 설정
+ # Python 서비스 설정,
 python:
   service:
     url: ${PYTHON_SERVICE_URL:http://localhost:5000}
@@ -38,7 +41,7 @@ python:
       max-attempts: 3
       delay: 1s
 
-# 로깅 설정
+  #로깅 설정,
 logging:
   level:
     com.ohgiraffers.tomatolab_imean.gateway: DEBUG
