@@ -10,6 +10,7 @@ class TomatolabImeanApplicationTests {
 
     @Test
     void contextLoads() {
+        // Spring 컨텍스트가 정상적으로 로드되는지 확인하는 기본 테스트
     }
 
 }
