@@ -75,6 +75,7 @@ public class CoupleApiController {
                 System.out.println("인증 정보 없음 - 세션 ID: " + request.getSession(false) != null ? request.getSession().getId() : "세션 없음");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponseDTO.error("인증이 필요합니다. 로그인 후 다시 시도해주세요."));
+
             }
             
             // 헬퍼 메서드를 활용해서 이미 커플인지 미리 확인
