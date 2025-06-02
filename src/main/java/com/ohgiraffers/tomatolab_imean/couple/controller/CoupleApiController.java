@@ -96,11 +96,16 @@ public class CoupleApiController {
             
             // 새로운 JWT 토큰 발급 (COUPLED 상태로)
             String newAccessToken = jwtTokenProvider.createAccessToken(
+                updatedMember.getMemberId(),             // 🆕 회원 ID 추가
                 updatedMember.getMemberCode(),
                 updatedMember.getCoupleStatusString(), // 이제 "COUPLED"
-                updatedMember.getMemberRole().name()
+                updatedMember.getMemberRole().name(),
+                updatedMember.getCoupleIdAsLong()        // 🆕 커플 ID 추가
             );
-            String newRefreshToken = refreshTokenService.createAndSaveRefreshToken(updatedMember.getMemberCode());
+            String newRefreshToken = refreshTokenService.createAndSaveRefreshToken(
+                updatedMember.getMemberId(),             // 🆕 회원 ID 추가
+                updatedMember.getMemberCode()
+            );
             
             // 토큰 만료 시간 계산
             long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
@@ -269,11 +274,16 @@ public class CoupleApiController {
             
             // 새로운 JWT 토큰 발급 (SINGLE 상태로)
             String newAccessToken = jwtTokenProvider.createAccessToken(
+                updatedMember.getMemberId(),             // 🆕 회원 ID 추가
                 updatedMember.getMemberCode(),
                 updatedMember.getCoupleStatusString(), // 이제 "SINGLE"
-                updatedMember.getMemberRole().name()
+                updatedMember.getMemberRole().name(),
+                updatedMember.getCoupleIdAsLong()        // 🆕 커플 ID 추가 (이제 null)
             );
-            String newRefreshToken = refreshTokenService.createAndSaveRefreshToken(updatedMember.getMemberCode());
+            String newRefreshToken = refreshTokenService.createAndSaveRefreshToken(
+                updatedMember.getMemberId(),             // 🆕 회원 ID 추가
+                updatedMember.getMemberCode()
+            );
             
             // 토큰 만료 시간 계산
             long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;

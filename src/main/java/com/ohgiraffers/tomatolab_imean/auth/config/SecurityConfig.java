@@ -133,27 +133,36 @@ public class SecurityConfig {
             
             // 요청 권한 설정
             .authorizeHttpRequests(auth -> {
-                // === 공개 접근 허용 경로 ===
+                // === 공개 접근 허용 경로 (인증 불필요) ===
                 
-                // 회원 관련 공개 API
-                auth.requestMatchers("/api/member/login").permitAll();           // 로그인
-                auth.requestMatchers("/api/member/register").permitAll();        // 원스텝 회원가입
-                auth.requestMatchers("/api/member/check-email").permitAll();     // 이메일 중복 체크
-
-                // JWT 토큰 관련 공개 API
-                auth.requestMatchers("/api/auth/refresh").permitAll();           // 토큰 갱신
+                // ✅ 회원 관련 공개 API (회원가입, 로그인, 이메일 중복 체크)
+                auth.requestMatchers("/api/member/**").permitAll();              // 모든 회원 관련 API 공개
                 
-                // 공개 API (인증 없이 접근 가능)
-                auth.requestMatchers("/api/public/**").permitAll();
+                // ✅ 인증(Auth) 관련 공개 API (이메일 발송, 인증 코드 검증, 토큰 갱신)
+                auth.requestMatchers("/api/auth/**").permitAll();               // 모든 인증 관련 API 공개
                 
-                // 🔍 디버깅 API (개발 환경에서만 사용)
+                // ✅ 이메일 관련 모든 API (인증 불필요)
+                auth.requestMatchers("/api/email/**").permitAll();              // 이메일 관련 모든 API
+                auth.requestMatchers("/api/verification/**").permitAll();       // 인증 코드 관련 모든 API
+                
+                // ✅ 로그인/회원가입 관련 웹 페이지
+                auth.requestMatchers("/login/**").permitAll();                  // 로그인 관련 모든 페이지
+                auth.requestMatchers("/register/**").permitAll();               // 회원가입 관련 모든 페이지
+                auth.requestMatchers("/signup/**").permitAll();                 // 가입 관련 모든 페이지
+                auth.requestMatchers("/auth/**").permitAll();                   // 인증 관련 모든 페이지
+                auth.requestMatchers("/forgot-password/**").permitAll();        // 비밀번호 찾기 관련
+                auth.requestMatchers("/reset-password/**").permitAll();         // 비밀번호 재설정 관련
+                
+                // ✅ 공개 API 및 기본 경로
+                auth.requestMatchers("/api/public/**").permitAll();             // 공개 API
+                auth.requestMatchers("/", "/index.html", "/home").permitAll();  // 메인 페이지
+                auth.requestMatchers("/error").permitAll();                     // 에러 페이지
+                
+                // ✅ 개발용 디버깅 API
                 auth.requestMatchers("/api/debug/**").permitAll();
                 
-                // CORS preflight 요청 허용
+                // ✅ CORS preflight 요청 허용
                 auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
-                
-                // 메인 페이지 등 (필요시)
-                auth.requestMatchers("/", "/index.html").permitAll();
                 
                 // === 인증 필요 - 싱글 사용자도 접근 가능 ===
                 

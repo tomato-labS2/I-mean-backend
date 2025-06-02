@@ -104,6 +104,8 @@ public class MemberController {
             );
             
             // 🆕 Refresh Token 생성 (member_id 포함)
+            // 로그인 시 기존 토큰 모두 삭제 후 새로 생성 (보안 강화)
+            refreshTokenService.deleteAllUserTokens(member.getMemberCode());
             String refreshToken = refreshTokenService.createAndSaveRefreshToken(
                 member.getMemberId(),           // 🆕 member_id 추가
                 member.getMemberCode()

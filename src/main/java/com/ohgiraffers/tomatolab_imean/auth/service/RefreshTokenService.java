@@ -234,6 +234,21 @@ public class RefreshTokenService {
     }
     
     /**
+     * 회원의 모든 Refresh Token 완전 삭제 (로그아웃 시 사용 - 개선된 버전)
+     * 토큰을 폐기하는 것이 아니라 DB에서 완전히 삭제합니다.
+     * @param memberCode 회원 코드
+     */
+    public void deleteAllUserTokens(String memberCode) {
+        try {
+            int deletedCount = refreshTokenRepository.deleteAllTokensByMemberCode(memberCode);
+            logger.info("회원의 모든 Refresh Token 삭제 완료 - 회원: {}, 삭제된 토큰 수: {}", memberCode, deletedCount);
+        } catch (Exception e) {
+            logger.error("Refresh Token 삭제 중 오류 발생 - 회원: {}, 오류: {}", memberCode, e.getMessage());
+            throw new RuntimeException("토큰 삭제에 실패했습니다.", e);
+        }
+    }
+    
+    /**
      * 특정 Refresh Token 폐기
      * @param refreshTokenValue 폐기할 Refresh Token 값
      */

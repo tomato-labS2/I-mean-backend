@@ -3,9 +3,13 @@ package com.ohgiraffers.tomatolab_imean.auth.controller;
 import com.ohgiraffers.tomatolab_imean.auth.exception.RefreshTokenNotFoundException;
 import com.ohgiraffers.tomatolab_imean.auth.jwt.JwtTokenProvider;
 import com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails;
+import com.ohgiraffers.tomatolab_imean.auth.model.dto.request.EmailSendRequestDTO;
+import com.ohgiraffers.tomatolab_imean.auth.model.dto.request.EmailVerifyRequestDTO;
 import com.ohgiraffers.tomatolab_imean.auth.model.dto.request.RefreshTokenRequestDTO;
 import com.ohgiraffers.tomatolab_imean.auth.model.dto.response.TokenResponseDTO;
+import com.ohgiraffers.tomatolab_imean.auth.service.EmailService;
 import com.ohgiraffers.tomatolab_imean.auth.service.RefreshTokenService;
+import com.ohgiraffers.tomatolab_imean.auth.service.VerificationCodeService;
 import com.ohgiraffers.tomatolab_imean.common.dto.response.ApiResponseDTO;
 import com.ohgiraffers.tomatolab_imean.common.ratelimit.RateLimit;
 import com.ohgiraffers.tomatolab_imean.common.ratelimit.RateLimitKeyType;
@@ -24,12 +28,17 @@ public class AuthController {
     
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final EmailService emailService;
+    private final VerificationCodeService verificationCodeService;
     private final com.ohgiraffers.tomatolab_imean.members.service.MemberService memberService;
     
     public AuthController(JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService,
+                         EmailService emailService, VerificationCodeService verificationCodeService,
                          com.ohgiraffers.tomatolab_imean.members.service.MemberService memberService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;
+        this.emailService = emailService;
+        this.verificationCodeService = verificationCodeService;
         this.memberService = memberService;
     }
     
@@ -74,9 +83,11 @@ public class AuthController {
                 
                 // 새로운 Access Token 생성 (현재 커플 상태 포함)
                 String newAccessToken = jwtTokenProvider.createAccessToken(
+                    member.getMemberId(),            // 🆕 회원 ID 추가
                     member.getMemberCode(),
                     member.getCoupleStatusString(),
-                    member.getMemberRole().name()
+                    member.getMemberRole().name(),
+                    member.getCoupleIdAsLong()       // 🆕 커플 ID 추가
                 );
                 
                 long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
@@ -129,9 +140,11 @@ public class AuthController {
                 // 토큰 로테이션 수행
                 String[] newTokens = refreshTokenService.rotateTokens(refreshToken);
                 String newAccessToken = jwtTokenProvider.createAccessToken(
+                    member.getMemberId(),            // 🆕 회원 ID 추가
                     member.getMemberCode(),
                     member.getCoupleStatusString(),
-                    member.getMemberRole().name()
+                    member.getMemberRole().name(),
+                    member.getCoupleIdAsLong()       // 🆕 커플 ID 추가
                 );
                 String newRefreshToken = newTokens[1];
                 
@@ -157,18 +170,20 @@ public class AuthController {
     }
     
     /**
-     * 로그아웃 (모든 Refresh Token 폐기)
+     * 로그아웃 (모든 Refresh Token 삭제)
      * 사용자의 모든 디바이스에서 로그아웃 처리
      */
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDTO<Object>> logout(Authentication authentication) {
         try {
             if (authentication != null && authentication.isAuthenticated()) {
-                // 현재 인증된 사용자의 모든 Refresh Token 폐기
+                // 현재 인증된 사용자의 모든 Refresh Token 완전 삭제
                 AuthDetails authDetails = (AuthDetails) authentication.getPrincipal();
                 String memberCode = authDetails.getMemberCode();
                 
-                refreshTokenService.revokeAllUserTokens(memberCode);
+                // 기존: refreshTokenService.revokeAllUserTokens(memberCode);
+                // 개선: 토큰을 폐기하는 대신 완전히 삭제
+                refreshTokenService.deleteAllUserTokens(memberCode);
                 
                 return ResponseEntity.ok(ApiResponseDTO.success(
                     "로그아웃되었습니다. 모든 디바이스에서 로그아웃 처리되었습니다.", 
@@ -217,5 +232,154 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponseDTO.error("로그아웃 처리 중 오류가 발생했습니다: " + e.getMessage()));
         }
+    }
+    
+    /**
+     * 이메일 발송 API
+     * 회원가입 인증코드 또는 비밀번호 재설정 코드 발송
+     * Rate Limit: 1분에 3회 (스팸 방지)
+     */
+    @RateLimit(requests = 3, window = "1m", keyType = RateLimitKeyType.IP,
+               message = "이메일 발송 요청이 너무 많습니다. 1분 후 다시 시도해주세요.")
+    @PostMapping("/email/send")
+    public ResponseEntity<ApiResponseDTO<Object>> sendEmail(@RequestBody EmailSendRequestDTO request) {
+        try {
+            // 입력값 검증
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("이메일 주소가 필요합니다."));
+            }
+            
+            if (request.getType() == null || request.getType().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("이메일 타입이 필요합니다. (verification 또는 password-reset)"));
+            }
+            
+            // 이메일 형식 검증
+            if (!isValidEmail(request.getEmail())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("올바른 이메일 형식이 아닙니다."));
+            }
+            
+            String email = request.getEmail().trim();
+            String type = request.getType().trim().toLowerCase();
+            
+            switch (type) {
+                case "verification":
+                    // 🆕 회원가입 인증 코드 발송 전 이메일 중복 체크
+                    try {
+                        memberService.findByEmail(email);
+                        // 이메일이 이미 존재하면 에러 반환
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(ApiResponseDTO.error("이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요."));
+                    } catch (org.springframework.data.crossstore.ChangeSetPersister.NotFoundException e) {
+                        // 중복되지 않음 - 정상적으로 진행
+                    }
+                    
+                    String verificationCode = emailService.generateVerificationCode();
+                    emailService.sendVerificationEmail(email, verificationCode);
+                    
+                    // 인증 코드를 메모리에 저장 (5분 유효)
+                    verificationCodeService.saveVerificationCode(email, verificationCode, "verification");
+                    
+                    return ResponseEntity.ok(ApiResponseDTO.success(
+                            "인증 코드가 이메일로 발송되었습니다. 5분 내에 입력해주세요.", 
+                            null));
+                    
+                case "password-reset":
+                    // 비밀번호 재설정 코드 발송
+                    try {
+                        // 이메일이 존재하는지 확인
+                        memberService.findByEmail(email);
+                        
+                        String resetCode = emailService.generateVerificationCode();
+                        emailService.sendPasswordResetEmail(email, resetCode);
+                        
+                        // 재설정 코드를 메모리에 저장 (10분 유효)
+                        verificationCodeService.saveVerificationCode(email, resetCode, "password-reset");
+                        
+                        return ResponseEntity.ok(ApiResponseDTO.success(
+                                "비밀번호 재설정 코드가 이메일로 발송되었습니다. 10분 내에 입력해주세요.", 
+                                null));
+                        
+                    } catch (org.springframework.data.crossstore.ChangeSetPersister.NotFoundException e) {
+                        // 보안상 이유로 이메일이 존재하지 않아도 성공 메시지 반환
+                        return ResponseEntity.ok(ApiResponseDTO.success(
+                                "해당 이메일로 비밀번호 재설정 코드가 발송되었습니다.", 
+                                null));
+                    }
+                    
+                default:
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(ApiResponseDTO.error("지원하지 않는 이메일 타입입니다. (verification 또는 password-reset만 지원)"));
+            }
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponseDTO.error("이메일 발송 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * 이메일 인증 코드 검증 API
+     * 회원가입 시 이메일 인증 또는 비밀번호 재설정 시 사용
+     */
+    @PostMapping("/email/verify")
+    public ResponseEntity<ApiResponseDTO<Object>> verifyEmailCode(@RequestBody EmailVerifyRequestDTO request) {
+        try {
+            // 입력값 검증
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("이메일 주소가 필요합니다."));
+            }
+            
+            if (request.getCode() == null || request.getCode().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("인증 코드가 필요합니다."));
+            }
+            
+            if (request.getType() == null || request.getType().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("인증 타입이 필요합니다."));
+            }
+            
+            // 이메일 형식 검증
+            if (!isValidEmail(request.getEmail())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("올바른 이메일 형식이 아닙니다."));
+            }
+            
+            // 인증 코드 검증
+            boolean isValid = verificationCodeService.verifyCode(
+                request.getEmail().trim(), 
+                request.getCode().trim(), 
+                request.getType().trim().toLowerCase()
+            );
+            
+            if (isValid) {
+                // 검증 성공 시 해당 코드 삭제 (재사용 방지)
+                verificationCodeService.removeVerificationCode(request.getEmail().trim());
+                
+                return ResponseEntity.ok(ApiResponseDTO.success(
+                    "인증이 완료되었습니다.", 
+                    null
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponseDTO.error("인증 코드가 올바르지 않거나 만료되었습니다."));
+            }
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponseDTO.error("인증 코드 검증 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * 이메일 형식 검증 헬퍼 메서드
+     */
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+        return email.matches(emailRegex);
     }
 }
