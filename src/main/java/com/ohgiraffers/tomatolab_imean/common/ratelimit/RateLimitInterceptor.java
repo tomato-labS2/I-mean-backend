@@ -16,6 +16,7 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -27,20 +28,55 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     
     private static final Logger logger = LoggerFactory.getLogger(RateLimitInterceptor.class);
     
-    // 인메모리 캐시 (Caffeine 사용)
-    private final Cache<String, AtomicInteger> requestCounts;
+    // 🔧 수정: 시간 정보를 포함하는 데이터 구조 사용
+    private final Cache<String, RateLimitData> requestCounts;
     private final ObjectMapper objectMapper;
+    
+    /**
+     * Rate Limit 데이터 클래스 (카운트 + 윈도우 시작 시간)
+     */
+    private static class RateLimitData {
+        private final AtomicInteger count;
+        private final LocalDateTime windowStart;
+        private final Duration windowDuration;
+        
+        public RateLimitData(Duration windowDuration) {
+            this.count = new AtomicInteger(1); // 첫 요청으로 시작
+            this.windowStart = LocalDateTime.now();
+            this.windowDuration = windowDuration;
+        }
+        
+        public int incrementAndGet() {
+            return count.incrementAndGet();
+        }
+        
+        public int get() {
+            return count.get();
+        }
+        
+        public boolean isExpired() {
+            return LocalDateTime.now().isAfter(windowStart.plus(windowDuration));
+        }
+        
+        public LocalDateTime getWindowStart() {
+            return windowStart;
+        }
+        
+        public Duration getWindowDuration() {
+            return windowDuration;
+        }
+    }
     
     public RateLimitInterceptor(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         
-        // Caffeine Cache 설정
+        // 🔧 수정: 캐시 만료 시간을 더 짧게 설정 (메모리 효율성)
         this.requestCounts = Caffeine.newBuilder()
-                .maximumSize(10000)  // 최대 10,000개 키 저장
-                .expireAfterWrite(Duration.ofHours(1))  // 1시간 후 자동 삭제
+                .maximumSize(10000)
+                .expireAfterWrite(Duration.ofMinutes(10))  // 10분 후 자동 삭제 (청소용)
                 .build();
                 
-        logger.info("RateLimitInterceptor 초기화 완료 - 인메모리 캐시 사용");
+        logger.info("RateLimitInterceptor 초기화 완료 - 시간 기반 Rate Limiting 사용");
     }
     
     @Override
@@ -72,23 +108,32 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             // 시간 윈도우 파싱
             Duration windowDuration = parseWindow(rateLimit.window());
             
-            // 현재 요청 횟수 확인 및 증가
-            AtomicInteger count = requestCounts.get(key, k -> new AtomicInteger(0));
-            int currentCount = count.incrementAndGet();
+            // 🔧 수정: 기존 데이터 확인 및 윈도우 만료 체크
+            RateLimitData rateLimitData = requestCounts.getIfPresent(key);
             
-            logger.debug("Rate Limit 체크 - 키: {}, 현재 요청 수: {}/{}, 윈도우: {}", 
-                        key, currentCount, rateLimit.requests(), rateLimit.window());
+            int currentCount;
+            
+            if (rateLimitData == null || rateLimitData.isExpired()) {
+                // 🔧 새로운 윈도우 시작 또는 만료된 윈도우
+                rateLimitData = new RateLimitData(windowDuration);
+                requestCounts.put(key, rateLimitData);
+                currentCount = 1;
+                
+                logger.debug("새로운 Rate Limit 윈도우 시작 - 키: {}, 윈도우: {}, 시작 시간: {}", 
+                           key, windowDuration, rateLimitData.getWindowStart());
+            } else {
+                // 🔧 기존 윈도우 내에서 카운트 증가
+                currentCount = rateLimitData.incrementAndGet();
+            }
+            
+            logger.debug("Rate Limit 체크 - 키: {}, 현재 요청 수: {}/{}, 윈도우: {}, 남은 시간: {}초", 
+                        key, currentCount, rateLimit.requests(), rateLimit.window(),
+                        Duration.between(LocalDateTime.now(), rateLimitData.getWindowStart().plus(windowDuration)).getSeconds());
             
             // 제한 초과 확인
             if (currentCount > rateLimit.requests()) {
-                handleRateLimitExceeded(response, rateLimit, key, currentCount);
+                handleRateLimitExceeded(response, rateLimit, key, currentCount, rateLimitData);
                 return false; // 요청 차단
-            }
-            
-            // 첫 번째 요청인 경우 TTL 설정
-            if (currentCount == 1) {
-                // 새로운 윈도우 시작 - 캐시에 TTL 적용됨
-                logger.debug("새로운 Rate Limit 윈도우 시작 - 키: {}, 윈도우: {}", key, windowDuration);
             }
             
             return true; // 요청 허용
@@ -217,17 +262,24 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * Rate Limit 초과 시 처리
      */
     private void handleRateLimitExceeded(HttpServletResponse response, RateLimit rateLimit, 
-                                        String key, int currentCount) throws Exception {
+                                        String key, int currentCount, RateLimitData rateLimitData) throws Exception {
         
-        logger.warn("🚨 Rate Limit 초과 - 키: {}, 요청 수: {}/{}, 메시지: {}", 
-                   key, currentCount, rateLimit.requests(), rateLimit.message());
+        // 🔧 수정: 더 자세한 로깅 정보 포함
+        long remainingSeconds = Duration.between(LocalDateTime.now(), 
+            rateLimitData.getWindowStart().plus(rateLimitData.getWindowDuration())).getSeconds();
+        
+        logger.warn("🚨 Rate Limit 초과 - 키: {}, 요청 수: {}/{}, 윈도우 시작: {}, 남은 시간: {}초, 메시지: {}", 
+                   key, currentCount, rateLimit.requests(), rateLimitData.getWindowStart(), 
+                   Math.max(0, remainingSeconds), rateLimit.message());
         
         // HTTP 상태코드 설정
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json;charset=UTF-8");
         
-        // 오류 응답 생성
-        ApiResponseDTO<Object> errorResponse = ApiResponseDTO.error(rateLimit.message());
+        // 🔧 수정: 남은 시간 정보를 포함한 오류 응답 생성
+        String enhancedMessage = String.format("%s (약 %d초 후 다시 시도 가능)", 
+                                              rateLimit.message(), Math.max(0, remainingSeconds));
+        ApiResponseDTO<Object> errorResponse = ApiResponseDTO.error(enhancedMessage);
         
         // JSON 응답 작성
         String jsonResponse = objectMapper.writeValueAsString(errorResponse);
