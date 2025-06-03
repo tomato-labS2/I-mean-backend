@@ -1,63 +1,63 @@
 package com.ohgiraffers.tomatolab_imean.members.model.dto.request;
 
 public class RegisterRequestDTO {
-    private String membersCode; // 선택적 - 제공되지 않으면 자동 생성
-    private String membersPass;
-    private String membersNickName;
-    private String membersEmail;
-    private String membersPhone;
+    private String memberCode;
+    private String memberPass;
+    private String memberNickName;
+    private String memberEmail;
+    private String memberPhone;
     
     // 생성자
     public RegisterRequestDTO() {
     }
     
-    public RegisterRequestDTO(String membersCode, String membersPass, String membersNickName, 
-                          String membersEmail, String membersPhone) {
-        this.membersCode = membersCode;
-        this.membersPass = membersPass;
-        this.membersNickName = membersNickName;
-        this.membersEmail = membersEmail;
-        this.membersPhone = membersPhone;
+    public RegisterRequestDTO(String memberCode, String memberPass, String memberNickName,
+                              String memberEmail, String memberPhone) {
+        this.memberCode = memberCode;
+        this.memberPass = memberPass;
+        this.memberNickName = memberNickName;
+        this.memberEmail = memberEmail;
+        this.memberPhone = memberPhone;
     }
     
     // getter, setter
-    public String getMembersCode() {
-        return membersCode;
+    public String getMemberCode() {
+        return memberCode;
     }
 
-    public void setMembersCode(String membersCode) {
-        this.membersCode = membersCode;
+    public void setMemberCode(String memberCode) {
+        this.memberCode = memberCode;
     }
 
-    public String getMembersPass() {
-        return membersPass;
+    public String getMemberPass() {
+        return memberPass;
     }
 
-    public void setMembersPass(String membersPass) {
-        this.membersPass = membersPass;
+    public void setMemberPass(String memberPass) {
+        this.memberPass = memberPass;
     }
 
-    public String getMembersNickName() {
-        return membersNickName;
+    public String getMemberNickName() {
+        return memberNickName;
     }
 
-    public void setMembersNickName(String membersNickName) {
-        this.membersNickName = membersNickName;
+    public void setMemberNickName(String memberNickName) {
+        this.memberNickName = memberNickName;
     }
 
-    public String getMembersEmail() {
-        return membersEmail;
+    public String getMemberEmail() {
+        return memberEmail;
     }
 
-    public void setMembersEmail(String membersEmail) {
-        this.membersEmail = membersEmail;
+    public void setMemberEmail(String memberEmail) {
+        this.memberEmail = memberEmail;
     }
 
-    public String getMembersPhone() {
-        return membersPhone;
+    public String getMemberPhone() {
+        return memberPhone;
     }
 
-    public void setMembersPhone(String membersPhone) {
-        this.membersPhone = membersPhone;
+    public void setMemberPhone(String memberPhone) {
+        this.memberPhone = memberPhone;
     }
 }
