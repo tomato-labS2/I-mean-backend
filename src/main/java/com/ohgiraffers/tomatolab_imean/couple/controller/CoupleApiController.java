@@ -7,6 +7,7 @@ import com.ohgiraffers.tomatolab_imean.common.exception.UnauthorizedException;
 import com.ohgiraffers.tomatolab_imean.couple.model.dto.request.CoupleRegisterRequestDTO;
 import com.ohgiraffers.tomatolab_imean.couple.model.dto.response.CoupleInfoResponseDTO;
 import com.ohgiraffers.tomatolab_imean.couple.model.dto.response.CoupleResponseDTO;
+import com.ohgiraffers.tomatolab_imean.couple.model.dto.response.CoupleStatusResponseDTO;
 import com.ohgiraffers.tomatolab_imean.couple.model.entity.Couple;
 import com.ohgiraffers.tomatolab_imean.couple.service.CoupleService;
 import com.ohgiraffers.tomatolab_imean.members.model.dto.response.MemberResponseDTO;
@@ -42,10 +43,36 @@ public class CoupleApiController {
     }
 
     /**
-     * 현재 사용자의 커플 상태 확인
+     * 커플 등록 상태 확인 (Polling API)
+     * GET /api/couple/status?memberID={id}
+     * 
+     * @param memberID 확인할 회원 ID
+     * @return 매칭된 경우 200 + JSON, 매칭되지 않은 경우 204 No Content
      */
     @GetMapping("/status")
-    public ResponseEntity<ApiResponseDTO<Boolean>> checkCoupleStatus(Authentication authentication) {
+    public ResponseEntity<CoupleStatusResponseDTO> checkCoupleStatus(@RequestParam Long memberID) {
+        try {
+            // 빠른 응답을 위한 가벼운 조회
+            CoupleStatusResponseDTO status = coupleService.getCoupleStatusByMemberID(memberID);
+            
+            if (status.isMatched()) {
+                // 매칭된 경우 200 OK + JSON 응답
+                return ResponseEntity.ok(status);
+            } else {
+                // 매칭되지 않은 경우 204 No Content
+                return ResponseEntity.noContent().build();
+            }
+        } catch (Exception e) {
+            // 예외 발생 시 204 No Content (에러를 숨김으로써 빠른 응답)
+            return ResponseEntity.noContent().build();
+        }
+    }
+
+    /**
+     * 현재 사용자의 커플 상태 확인 (기존 API - 인증 기반)
+     */
+    @GetMapping("/status/me")
+    public ResponseEntity<ApiResponseDTO<Boolean>> checkMyCoupleStatus(Authentication authentication) {
         try {
             Long coupleId = findCoupleId(authentication);
             boolean isInCouple = (coupleId != null);

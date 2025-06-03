@@ -164,6 +164,9 @@ public class SecurityConfig {
                 // ✅ CORS preflight 요청 허용
                 auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                 
+                // ✅ 커플 Polling API (인증 불필요) - 빠른 응답을 위해
+                auth.requestMatchers("/api/couple/status").permitAll();             // 커플 상태 확인 Polling API (memberID 사용)
+                
                 // === 인증 필요 - 싱글 사용자도 접근 가능 ===
                 
                 // 프로필 관련 (로그인한 모든 사용자)
@@ -171,8 +174,8 @@ public class SecurityConfig {
                 auth.requestMatchers("/api/member/verify-password").authenticated();
                 auth.requestMatchers(HttpMethod.PUT, "/api/member/profile").authenticated();
                 
-                // 커플 상태 확인 (로그인한 모든 사용자)
-                auth.requestMatchers("/api/couple/status").authenticated();
+                // 내 커플 상태 확인 (로그인한 모든 사용자)
+                auth.requestMatchers("/api/couple/status/me").authenticated();
                 
                 // 커플 등록 (모든 로그인 사용자 접근 가능 - 비즈니스 로직에서 처리)
                 auth.requestMatchers("/api/couple/register").authenticated();

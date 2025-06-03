@@ -170,23 +170,27 @@ public class AuthController {
     }
     
     /**
-     * 로그아웃 (모든 Refresh Token 삭제)
-     * 사용자의 모든 디바이스에서 로그아웃 처리
+     * 로그아웃 (Refresh Token만 삭제, 회원 정보는 보존)
+     * 사용자의 모든 디바이스에서 로그아웃 처리하되, 회원 정보는 절대 삭제하지 않음
      */
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDTO<Object>> logout(Authentication authentication) {
         try {
             if (authentication != null && authentication.isAuthenticated()) {
-                // 현재 인증된 사용자의 모든 Refresh Token 완전 삭제
+                // 현재 인증된 사용자의 정보 추출 (회원 정보는 조회만 함)
                 AuthDetails authDetails = (AuthDetails) authentication.getPrincipal();
                 String memberCode = authDetails.getMemberCode();
                 
-                // 기존: refreshTokenService.revokeAllUserTokens(memberCode);
-                // 개선: 토큰을 폐기하는 대신 완전히 삭제
+                // ⚠️ 중요: 회원 정보는 절대 삭제하지 않고, 오직 토큰만 삭제
+                // 회원 정보 보존을 위한 로깅
+
+                // 🔑 토큰만 완전히 삭제 (회원 정보는 건드리지 않음)
                 refreshTokenService.deleteAllUserTokens(memberCode);
                 
+                // 로그아웃 완료 로깅
+
                 return ResponseEntity.ok(ApiResponseDTO.success(
-                    "로그아웃되었습니다. 모든 디바이스에서 로그아웃 처리되었습니다.", 
+                    "로그아웃되었습니다. 모든 디바이스에서 로그아웃 처리되었습니다. 회원 정보는 안전하게 보존됩니다.", 
                     null
                 ));
             } else {
@@ -196,9 +200,9 @@ public class AuthController {
                 ));
             }
         } catch (Exception e) {
-            // 로그아웃은 실패하더라도 클라이언트에서 토큰 삭제하도록 안내
-            return ResponseEntity.ok(ApiResponseDTO.success(
-                "로그아웃되었습니다. 클라이언트에서 토큰을 삭제해주세요.", 
+            // 로그아웃 실패 시에도 클라이언트에서 토큰 삭제하도록 안내
+         return ResponseEntity.ok(ApiResponseDTO.success(
+                "로그아웃되었습니다. 클라이언트에서 토큰을 삭제해주세요. 회원 정보는 안전하게 보존됩니다.", 
                 null
             ));
         }
