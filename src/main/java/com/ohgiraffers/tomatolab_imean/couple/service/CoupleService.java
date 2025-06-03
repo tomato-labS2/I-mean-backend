@@ -2,6 +2,7 @@ package com.ohgiraffers.tomatolab_imean.couple.service;
 
 
 import com.ohgiraffers.tomatolab_imean.couple.model.common.CoupleStatus;
+import com.ohgiraffers.tomatolab_imean.couple.model.dto.response.CoupleStatusResponseDTO;
 import com.ohgiraffers.tomatolab_imean.couple.model.entity.Couple;
 import com.ohgiraffers.tomatolab_imean.couple.repository.CoupleRepository;
 import com.ohgiraffers.tomatolab_imean.members.model.entity.Members;
@@ -125,6 +126,39 @@ public class CoupleService {
         memberService.save(partner);
         
         System.out.println("커플 해제 완료: " + currentMember.getMemberCode() + " <-> " + partner.getMemberCode());
+    }
+
+    /**
+     * Polling API용 - 가벼운 커플 상태 확인 (memberID로)
+     * 빠른 응답을 위해 최소한의 정보만 조회
+     */
+    public CoupleStatusResponseDTO getCoupleStatusByMemberID(Long memberID) {
+        Optional<Couple> coupleOptional = coupleRepository.findByMember1_MemberIdOrMember2_MemberId(memberID, memberID);
+        
+        if (coupleOptional.isEmpty()) {
+            return CoupleStatusResponseDTO.notMatched();
+        }
+        
+        Couple couple = coupleOptional.get();
+        
+        // 커플 상태가 ACTIVE인지 확인
+        if (couple.getStatus() != CoupleStatus.ACTIVE) {
+            return CoupleStatusResponseDTO.notMatched();
+        }
+        
+        // 파트너 정보 확인
+        Members partner;
+        if (couple.getMember1().getMemberId().equals(memberID)) {
+            partner = couple.getMember2();
+        } else {
+            partner = couple.getMember1();
+        }
+        
+        return CoupleStatusResponseDTO.matched(
+            partner.getMemberId(),
+            partner.getMemberCode(),
+            partner.getMemberNickName()
+        );
     }
 
     /**

@@ -30,13 +30,3 @@ spring:
           writetimeout: 5000
     auth-code-expiration-millis: 1800000  # 30 * 60 * 1000 == 30분
 
-# 테스트용 Python 서비스 설정
-python:
-  service:
-    url: ${PYTHON_SERVICE_URL:http://localhost:5000}
-    timeout:
-      connect: 5s
-      read: 30s
-    retry:
-      max-attempts: 3
-      delay: 1s
