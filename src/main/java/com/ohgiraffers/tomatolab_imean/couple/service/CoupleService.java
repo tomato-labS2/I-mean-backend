@@ -113,10 +113,6 @@ public class CoupleService {
         // 상대방 조회
         Members partner = getPartner(couple, currentMember);
         
-        // 커플 상태를 ENDED로 변경
-        couple.setStatus(CoupleStatus.ENDED);
-        coupleRepository.save(couple);
-        
         // 두 멤버의 coupleId를 null로 설정
         currentMember.setCoupleId(null);
         partner.setCoupleId(null);
@@ -124,6 +120,9 @@ public class CoupleService {
         // 멤버 정보 저장
         memberService.save(currentMember);
         memberService.save(partner);
+        
+        // 커플 테이블에서 커플 레코드 완전 삭제
+        coupleRepository.delete(couple);
         
         System.out.println("커플 해제 완료: " + currentMember.getMemberCode() + " <-> " + partner.getMemberCode());
     }

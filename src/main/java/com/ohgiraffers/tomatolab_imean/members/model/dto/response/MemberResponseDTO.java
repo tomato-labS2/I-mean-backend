@@ -9,6 +9,7 @@ public class MemberResponseDTO {
     private String memberCode;
     private String memberNickName;
     private String memberEmail;
+    private String memberPhone;      // 🆕 핸드폰 번호 추가
     private String memberRole;       // 🆕 추가
     private String coupleStatus;     // 🆕 추가
     private Long coupleId;           // 🆕 추가
@@ -23,6 +24,7 @@ public class MemberResponseDTO {
         this.memberCode = member.getMemberCode();
         this.memberNickName = member.getMemberNickName();
         this.memberEmail = member.getMemberEmail();
+        this.memberPhone = member.getMemberPhone();      // 🆕 핸드폰 번호 추가
         this.memberRole = member.getMemberRole().name();         // 🆕 추가
         this.coupleStatus = member.getCoupleStatusString();      // 🆕 추가
         this.coupleId = member.getCoupleIdAsLong();              // 🆕 추가
@@ -60,6 +62,14 @@ public class MemberResponseDTO {
 
     public void setMemberEmail(String memberEmail) {
         this.memberEmail = memberEmail;
+    }
+
+    public String getMemberPhone() {     // 🆕 핸드폰 번호 getter 추가
+        return memberPhone;
+    }
+
+    public void setMemberPhone(String memberPhone) {  // 🆕 핸드폰 번호 setter 추가
+        this.memberPhone = memberPhone;
     }
 
     public String getMemberRole() {    // 🆕 추가

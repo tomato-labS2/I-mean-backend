@@ -30,6 +30,13 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
 
+# JWT 설정 (환경변수에서 읽어옴)
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:1800000}  # 30분 (기본값)
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}  # 7일 (기본값)
+
+
   #로깅 설정,
 logging:
   level:
