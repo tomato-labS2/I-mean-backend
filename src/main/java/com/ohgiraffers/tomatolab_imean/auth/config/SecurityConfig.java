@@ -97,9 +97,8 @@ public class SecurityConfig {
         
         // 허용할 Origin (프론트엔드 주소)
         configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",    // Next.js 개발 서버
-                "http://localhost:3001",    // 추가 개발 서버 (필요시)
-                "https://your-frontend-domain.com"  // 프로덕션 도메인 (나중에 수정)
+                "https://d3v60vbjziepuv.cloudfront.net",    // Next.js 개발 서버
+                "https://imean.shop"  // 프로덕션 도메인 (나중에 수정)
         ));
         
         // 허용할 HTTP 메서드
