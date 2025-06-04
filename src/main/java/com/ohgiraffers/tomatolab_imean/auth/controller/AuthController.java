@@ -386,4 +386,130 @@ public class AuthController {
         String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
         return email.matches(emailRegex);
     }
+    
+    /**
+     * 🔧 JWT 토큰 디버깅 및 테스트 엔드포인트
+     * 개발/테스트 목적으로 JWT 토큰의 생성, 파싱, 검증을 테스트
+     */
+    @PostMapping("/debug/token")
+    public ResponseEntity<ApiResponseDTO<Object>> debugToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            java.util.Map<String, Object> debugInfo = new java.util.HashMap<>();
+            
+            // JWT Properties 정보
+            debugInfo.put("jwtConfig", java.util.Map.of(
+                "secretKeyLength", jwtTokenProvider.getJwtProperties().getSecretKey() != null ? 
+                    jwtTokenProvider.getJwtProperties().getSecretKey().length() : 0,
+                "accessTokenExpiration", jwtTokenProvider.getJwtProperties().getAccessTokenExpiration(),
+                "refreshTokenExpiration", jwtTokenProvider.getJwtProperties().getRefreshTokenExpiration()
+            ));
+            
+            // Authorization 헤더 확인
+            if (authHeader != null) {
+                debugInfo.put("authHeader", java.util.Map.of(
+                    "received", true,
+                    "value", authHeader,
+                    "startsWithBearer", authHeader.startsWith("Bearer "),
+                    "length", authHeader.length()
+                ));
+                
+                // Bearer 토큰 추출
+                if (authHeader.startsWith("Bearer ")) {
+                    String token = authHeader.substring(7);
+                    debugInfo.put("extractedToken", java.util.Map.of(
+                        "length", token.length(),
+                        "first10Chars", token.length() >= 10 ? token.substring(0, 10) + "..." : token
+                    ));
+                    
+                    try {
+                        // 토큰 유효성 검증
+                        boolean isValid = jwtTokenProvider.validateToken(token);
+                        debugInfo.put("tokenValidation", java.util.Map.of("isValid", isValid));
+                        
+                        if (isValid) {
+                            // 토큰에서 정보 추출
+                            JwtTokenProvider.TokenUserInfo userInfo = jwtTokenProvider.getUserInfoFromToken(token);
+                            debugInfo.put("tokenContent", java.util.Map.of(
+                                "memberId", userInfo.getMemberId(),
+                                "memberCode", userInfo.getMemberCode(),
+                                "coupleStatus", userInfo.getCoupleStatus(),
+                                "memberRole", userInfo.getMemberRole(),
+                                "coupleId", userInfo.getCoupleId()
+                            ));
+                            
+                            // 토큰 만료 시간
+                            java.util.Date expiration = jwtTokenProvider.getExpirationFromToken(token);
+                            debugInfo.put("tokenExpiration", java.util.Map.of(
+                                "expirationDate", expiration.toString(),
+                                "isExpiringSoon", jwtTokenProvider.isTokenExpiringSoon(token),
+                                "remainingTime", (expiration.getTime() - System.currentTimeMillis()) / 1000 + " seconds"
+                            ));
+                        }
+                    } catch (Exception e) {
+                        debugInfo.put("tokenError", java.util.Map.of(
+                            "errorType", e.getClass().getSimpleName(),
+                            "errorMessage", e.getMessage()
+                        ));
+                    }
+                } else {
+                    debugInfo.put("tokenExtractionError", "Authorization header does not start with 'Bearer '");
+                }
+            } else {
+                debugInfo.put("authHeader", java.util.Map.of("received", false));
+            }
+            
+            // 테스트 토큰 생성
+            try {
+                String testToken = jwtTokenProvider.createAccessToken(
+                    999L, "TEST999", "SINGLE", "MEMBER", null
+                );
+                debugInfo.put("testTokenGeneration", java.util.Map.of(
+                    "success", true,
+                    "tokenLength", testToken.length(),
+                    "tokenPreview", testToken.substring(0, Math.min(50, testToken.length())) + "..."
+                ));
+            } catch (Exception e) {
+                debugInfo.put("testTokenGeneration", java.util.Map.of(
+                    "success", false,
+                    "error", e.getMessage()
+                ));
+            }
+            
+            return ResponseEntity.ok(ApiResponseDTO.success("JWT 토큰 디버깅 정보", debugInfo));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponseDTO.error("디버깅 중 오류 발생: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * 🔧 JWT 토큰 생성 테스트 엔드포인트 (개발/테스트용)
+     */
+    @PostMapping("/debug/generate-token")
+    public ResponseEntity<ApiResponseDTO<Object>> generateTestToken() {
+        try {
+            // 테스트용 토큰 생성
+            String testAccessToken = jwtTokenProvider.createAccessToken(
+                1L, "TEST001", "SINGLE", "MEMBER", null
+            );
+            
+            String testRefreshToken = jwtTokenProvider.createRefreshToken(1L, "TEST001");
+            
+            long expiresIn = jwtTokenProvider.getJwtProperties().getAccessTokenExpiration() / 1000;
+            
+            java.util.Map<String, Object> tokenInfo = java.util.Map.of(
+                "accessToken", testAccessToken,
+                "refreshToken", testRefreshToken,
+                "expiresIn", expiresIn,
+                "usage", "Authorization: Bearer " + testAccessToken
+            );
+            
+            return ResponseEntity.ok(ApiResponseDTO.success("테스트 토큰 생성 완료", tokenInfo));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponseDTO.error("테스트 토큰 생성 실패: " + e.getMessage()));
+        }
+    }
 }

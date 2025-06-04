@@ -136,7 +136,9 @@ public class SecurityConfig {
                 // === 공개 접근 허용 경로 (인증 불필요) ===
                 
                 // ✅ 회원 관련 공개 API (회원가입, 로그인, 이메일 중복 체크)
-                auth.requestMatchers("/api/member/**").permitAll();              // 모든 회원 관련 API 공개
+                auth.requestMatchers("/api/member/login").permitAll();              // 로그인
+                auth.requestMatchers("/api/member/register").permitAll();           // 회원가입
+                auth.requestMatchers("/api/member/check-email").permitAll();        // 이메일 중복 체크
                 
                 // ✅ 인증(Auth) 관련 공개 API (이메일 발송, 인증 코드 검증, 토큰 갱신)
                 auth.requestMatchers("/api/auth/**").permitAll();               // 모든 인증 관련 API 공개
@@ -167,17 +169,12 @@ public class SecurityConfig {
                 // ✅ 커플 Polling API (인증 불필요) - 빠른 응답을 위해
                 auth.requestMatchers("/api/couple/status").permitAll();             // 커플 상태 확인 Polling API (memberID 사용)
                 
-                // === 인증 필요 - 싱글 사용자도 접근 가능 ===
-                
-                // 프로필 관련 (로그인한 모든 사용자)
-                auth.requestMatchers("/api/member/profile").authenticated();
-                auth.requestMatchers("/api/member/verify-password").authenticated();
-                auth.requestMatchers(HttpMethod.PUT, "/api/member/profile").authenticated();
+                // === 인증 필요 - 싱글/커플 사용자 모두 접근 가능 ===
                 
                 // 내 커플 상태 확인 (로그인한 모든 사용자)
                 auth.requestMatchers("/api/couple/status/me").authenticated();
                 
-                // 커플 등록 (모든 로그인 사용자 접근 가능 - 비즈니스 로직에서 처리)
+                // 커플 등록 (모든 로그인 사용자 접근 가능 - 비즈니스 로직에서 중복 체크)
                 auth.requestMatchers("/api/couple/register").authenticated();
                 
                 // === 커플 관계 필요 ===

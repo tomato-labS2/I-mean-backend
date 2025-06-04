@@ -289,9 +289,9 @@ public class MemberController {
     }
     
     /*
-     * 프로필 업데이트
+     * 프로필 업데이트 (기존 엔드포인트)
      */
-    @PutMapping("/profile")
+    @PutMapping("/update")
     public ResponseEntity<ApiResponseDTO<MemberResponseDTO>> updateProfile(
             Authentication authentication,
             @RequestBody ProfileUpdateRequestDTO request) {

@@ -20,7 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * 🆕 JWT 인증 필터 (member_id 지원 개선 버전)
+ * JWT 인증 필터
  * 모든 HTTP 요청에서 JWT 토큰을 검사하고 인증 처리를 담당
  * OncePerRequestFilter를 상속하여 요청당 한 번만 실행됨
  */
@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     
     /**
-     * 🆕 실제 필터 로직을 수행하는 메서드 (디버깅 로그 강화)
+     * 실제 필터 로직을 수행하는 메서드
      */
     @Override
     protected void doFilterInternal(
@@ -53,27 +53,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // 1. 요청에서 JWT 토큰 추출
             String jwt = extractTokenFromRequest(request);
-            logger.debug("🔍 토큰 추출 결과: {}", jwt != null ? "성공" : "실패");
+            logger.debug("📋 추출된 JWT 토큰: {}", jwt != null ? "토큰 존재 (길이: " + jwt.length() + ")" : "토큰 없음");
             
             // 2. 토큰이 있고, 현재 인증 정보가 없는 경우에만 처리
             if (StringUtils.hasText(jwt) && SecurityContextHolder.getContext().getAuthentication() == null) {
-                logger.debug("🔍 토큰 검증 시작...");
+                logger.debug("🔐 JWT 토큰 검증 시작...");
                 
                 // 3. 토큰 유효성 검사
                 if (jwtTokenProvider.validateToken(jwt)) {
-                    logger.debug("✅ 토큰 유효성 검사 성공");
+                    logger.debug("✅ JWT 토큰 유효성 검증 성공");
                     
-                    // 🆕 4. 토큰에서 사용자 정보 추출 (member_id 포함)
+                    // 4. 토큰에서 사용자 정보 추출
                     JwtTokenProvider.TokenUserInfo userInfo = jwtTokenProvider.getUserInfoFromToken(jwt);
-                    logger.debug("🔍 토큰에서 추출된 사용자 정보 - ID: {}, Code: {}, 상태: {}, 역할: {}, 커플ID: {}", 
-                            userInfo.getMemberId(), userInfo.getMemberCode(), 
-                            userInfo.getCoupleStatus(), userInfo.getMemberRole(), userInfo.getCoupleId());
+                    logger.debug("👤 토큰에서 추출된 사용자 정보: {}", userInfo);
                     
-                    // 5. 사용자 정보로 UserDetails 조회 (Fallback 로직 강화)
+                    // 5. 사용자 정보로 UserDetails 조회
                     UserDetails userDetails;
                     try {
-                        logger.debug("🔍 사용자 정보 조회 시도...");
-                        // 🆕 통합 조회 메서드 사용 (ID -> Code 순서로 fallback)
+                        logger.debug("🔍 사용자 정보 조회 시작 - memberId: {}, memberCode: {}", 
+                                userInfo.getMemberId(), userInfo.getMemberCode());
                         userDetails = authService.loadUserByIdOrCode(userInfo.getMemberId(), userInfo.getMemberCode());
                         logger.debug("✅ 사용자 정보 조회 성공: {}", userDetails.getUsername());
                     } catch (Exception e) {
@@ -84,12 +82,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
                     
-                    // 6. 🆕 JWT에서 추출한 정보로 AuthDetails 생성 (coupleId 포함)
+                    // 6. JWT에서 추출한 정보로 AuthDetails 생성
                     if (userDetails instanceof com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails) {
                         com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails originalAuthDetails = 
                             (com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails) userDetails;
                         
-                        // JWT의 정보와 DB의 정보를 조합 (토큰의 정보를 우선 사용)
                         userDetails = new com.ohgiraffers.tomatolab_imean.auth.model.AuthDetails(
                             userInfo.getMemberId() != null ? userInfo.getMemberId() : originalAuthDetails.getMemberId(),
                             userInfo.getMemberCode(),
@@ -97,12 +94,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             originalAuthDetails.getMemberRole(),
                             originalAuthDetails.getMemberStatus(),
                             userInfo.getCoupleStatus() != null ? userInfo.getCoupleStatus() : originalAuthDetails.getCoupleStatus(),
-                            userInfo.getCoupleId() != null ? userInfo.getCoupleId() : originalAuthDetails.getCoupleId()  // 🆕 커플 ID 포함
+                            userInfo.getCoupleId() != null ? userInfo.getCoupleId() : originalAuthDetails.getCoupleId()
                         );
-                        logger.debug("🔍 AuthDetails 생성 완료");
+                        logger.debug("🔄 AuthDetails 업데이트 완료");
                     }
                     
-                    // 7. 인증 토큰 생성
+                    // 7. 인증 토큰 생성 및 SecurityContext 설정
                     UsernamePasswordAuthenticationToken authentication = 
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, 
@@ -110,87 +107,62 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     userDetails.getAuthorities()
                             );
                     
-                    // 8. 요청 정보를 인증 토큰에 설정
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    
-                    // 9. Spring Security Context에 인증 정보 설정
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    logger.debug("✅ Spring Security Context에 인증 정보 설정 완료");
                     
-                    // 🆕 로깅 개선 (coupleId 포함)
-                    logger.debug("✅ JWT 인증 성공 - ID: {}, Code: {}, 커플상태: {}, 역할: {}, 커플ID: {}", 
-                            userInfo.getMemberId(), userInfo.getMemberCode(), 
-                            userInfo.getCoupleStatus(), userInfo.getMemberRole(), userInfo.getCoupleId());
+                    logger.debug("🎉 JWT 인증 성공 - ID: {}, Code: {}, Authorities: {}", 
+                            userInfo.getMemberId(), userInfo.getMemberCode(), userDetails.getAuthorities());
                 } else {
-                    logger.warn("❌ 토큰 유효성 검사 실패");
+                    logger.warn("❌ JWT 토큰 유효성 검증 실패");
                 }
             } else {
-                if (!StringUtils.hasText(jwt)) {
-                    logger.debug("🔍 토큰이 없음 - 인증 건너뜀");
-                } else if (SecurityContextHolder.getContext().getAuthentication() != null) {
-                    logger.debug("🔍 이미 인증되어 있음 - 인증 건너뜀");
-                }
+                logger.debug("⏭️ JWT 토큰 처리 건너뛰기 - 토큰: {}, 기존 인증: {}", 
+                        StringUtils.hasText(jwt) ? "존재" : "없음", 
+                        SecurityContextHolder.getContext().getAuthentication() != null ? "존재" : "없음");
             }
             
         } catch (TokenExpiredException e) {
-            logger.warn("❌ 토큰 만료: {}", e.getMessage());
+            logger.warn("⏰ 토큰 만료: {}", e.getMessage());
             SecurityContextHolder.clearContext();
-            // 🆕 클라이언트에게 토큰 만료 알림 (선택적)
             response.setHeader("X-Token-Expired", "true");
             
         } catch (InvalidTokenException e) {
-            logger.warn("❌ 유효하지 않은 토큰: {}", e.getMessage());
+            logger.warn("🚫 유효하지 않은 토큰: {}", e.getMessage());
             SecurityContextHolder.clearContext();
-            // 🆕 클라이언트에게 토큰 무효 알림 (선택적)
             response.setHeader("X-Token-Invalid", "true");
             
         } catch (Exception e) {
-            logger.error("❌ JWT 인증 중 오류 발생: {}", e.getMessage(), e);
+            logger.error("💥 JWT 인증 중 오류 발생: {}", e.getMessage(), e);
             SecurityContextHolder.clearContext();
         }
         
-        logger.debug("🔍 JWT 필터 종료 - {} {}", method, requestURI);
-        // 10. 다음 필터로 요청 전달
+        // 8. 다음 필터로 요청 전달
+        logger.debug("➡️ 다음 필터로 요청 전달");
         filterChain.doFilter(request, response);
     }
     
     /**
-     * HTTP 요청에서 JWT 토큰을 추출하는 메서드 (디버깅 로그 추가)
+     * HTTP 요청에서 JWT 토큰을 추출하는 메서드
      */
     private String extractTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         
-        // 🔍 디버깅 로그 추가
-        logger.debug("🔍 Authorization 헤더 확인 - 원본: [{}]", bearerToken);
-        
-        if (StringUtils.hasText(bearerToken)) {
-            logger.debug("🔍 Authorization 헤더 길이: {}", bearerToken.length());
-            logger.debug("🔍 Bearer로 시작하는지: {}", bearerToken.startsWith("Bearer "));
-            
-            if (bearerToken.startsWith("Bearer ")) {
-                String token = bearerToken.substring(7);
-                logger.debug("🔍 추출된 토큰 길이: {}", token.length());
-                logger.debug("🔍 추출된 토큰 앞 50자: {}", token.length() > 50 ? token.substring(0, 50) + "..." : token);
-                return token;
-            } else {
-                logger.warn("⚠️ Authorization 헤더가 'Bearer '로 시작하지 않음: [{}]", bearerToken);
-            }
-        } else {
-            logger.debug("🔍 Authorization 헤더가 없거나 비어있음");
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
         }
         
         return null;
     }
     
     /**
-     * 🆕 특정 경로에 대해 필터를 적용하지 않을 수 있도록 하는 메서드 (개선)
+     * 특정 경로에 대해 필터를 적용하지 않을 수 있도록 하는 메서드
      */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         String method = request.getMethod();
         
-        // 공개 API 경로들
+        // 공개 API 경로들 (인증이 불필요한 경로만)
         return path.startsWith("/api/member/login") ||
                path.startsWith("/api/member/register") ||
                path.startsWith("/api/member/check-email") ||
