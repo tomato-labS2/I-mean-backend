@@ -168,6 +168,7 @@ public class SecurityConfig {
                 
                 // ✅ 커플 Polling API (인증 불필요) - 빠른 응답을 위해
                 auth.requestMatchers("/api/couple/status").permitAll();             // 커플 상태 확인 Polling API (memberID 사용)
+
                 
                 // === 인증 필요 - 싱글/커플 사용자 모두 접근 가능 ===
                 
